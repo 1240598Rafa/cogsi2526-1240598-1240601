@@ -1,16 +1,15 @@
 plugins {
-    // Apply the application plugin to add support for building a Java application
     id 'application'
 }
 
 // Configure Java toolchain
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17) 
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
-application{
+application {
     mainClass = 'basic_demo.App'
 }
 
@@ -22,32 +21,58 @@ repositories {
 }
 
 dependencies {
-    // Use Apache Log4J for logging
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.2'
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.2'
+    // Logging
+    implementation 'org.apache.logging.log4j:log4j-api:2.11.2'
+    implementation 'org.apache.logging.log4j:log4j-core:2.11.2'
+
+    // Testes (JUnit 5)
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
- 
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+// Fat JAR
 jar {
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE // allow duplicates
-
-    manifest {
-        attributes "Main-Class": "basic_demo.App"
-    }
-
-   from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    manifest { attributes "Main-Class": "basic_demo.App" }
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
 }
 
-
-
-task runClient(type:JavaExec, dependsOn: classes){
+// Client já existente
+task runClient(type: JavaExec, dependsOn: classes) {
     group = "DevOps"
-    description = "Launches a chat client that connects to a server on localhost:59001 "
-  
+    description = "Launches a chat client that connects to a server on localhost:59001"
     classpath = sourceSets.main.runtimeClasspath
-
     mainClass = 'basic_demo.ChatClientApp'
-
     args 'localhost', '59001'
+}
+
+// servidor
+task runServer(type: JavaExec, dependsOn: classes) {
+    group = "DevOps"
+    description = "Launches the chat server"
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'basic_demo.ChatServerApp'
+    args(findProperty('port') ?: '59001')
+}
+
+// backup das fontes
+def backupDir = layout.buildDirectory.dir("backup")
+tasks.register('backupSources', Copy) {
+    group = "DevOps"
+    description = "Copies src/ to build/backup/src"
+    from('src')
+    into(backupDir.map { it.dir('src') })
+}
+
+// zip do backup
+tasks.register('zipBackup', Zip) {
+    group = "DevOps"
+    description = "Zips build/backup/src to build/backup/backup-src.zip"
+    dependsOn 'backupSources'
+    from(backupDir.map { it.dir('src') })
+    archiveFileName = 'backup-src.zip'
+    destinationDirectory = layout.buildDirectory.dir('backup')
 }
