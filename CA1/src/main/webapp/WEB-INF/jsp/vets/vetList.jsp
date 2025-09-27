@@ -42,7 +42,7 @@
             <a href="<spring:url value='/vets.xml' htmlEscape="true" />">View as XML</a>
         </div>
         <div class="col-md-2">
-            <a href="<spring:url value='/vets.json' htmlEscape="true" />">View as JSONS</a>
+            <a href="<spring:url value='/vets.json' htmlEscape="true" />">View as JSON</a>
         </div>
     </div>
 </petclinic:layout>
