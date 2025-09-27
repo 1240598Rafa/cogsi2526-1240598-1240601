@@ -1,9 +1,9 @@
-INSERT INTO vets VALUES (default, 'James', 'Carter');
-INSERT INTO vets VALUES (default, 'Helen', 'Leary');
-INSERT INTO vets VALUES (default, 'Linda', 'Douglas');
-INSERT INTO vets VALUES (default, 'Rafael', 'Ortega');
-INSERT INTO vets VALUES (default, 'Henry', 'Stevens');
-INSERT INTO vets VALUES (default, 'Sharon', 'Jenkins');
+INSERT INTO vets (first_name, last_name, license_number) VALUES ('James','Carter','VET-1');
+INSERT INTO vets (first_name, last_name, license_number) VALUES ('Helen','Leary','VET-2');
+INSERT INTO vets (first_name, last_name, license_number) VALUES ('Linda','Douglas','VET-3');
+INSERT INTO vets (first_name, last_name, license_number) VALUES ('Rafael','Ortega','VET-4');
+INSERT INTO vets (first_name, last_name, license_number) VALUES ('Henry','Stevens','VET-5');
+INSERT INTO vets (first_name, last_name, license_number) VALUES ('Sharon','Jenkins','VET-6');
 
 INSERT INTO specialties VALUES (default, 'radiology');
 INSERT INTO specialties VALUES (default, 'surgery');
@@ -51,3 +51,5 @@ INSERT INTO visits VALUES (default, 7, '2013-01-01', 'rabies shot');
 INSERT INTO visits VALUES (default, 8, '2013-01-02', 'rabies shot');
 INSERT INTO visits VALUES (default, 8, '2013-01-03', 'neutered');
 INSERT INTO visits VALUES (default, 7, '2013-01-04', 'spayed');
+
+

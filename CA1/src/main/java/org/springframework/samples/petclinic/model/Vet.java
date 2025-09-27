@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -49,6 +50,9 @@ public class Vet extends Person {
         inverseJoinColumns = @JoinColumn(name = "specialty_id"))
     private Set<Specialty> specialties;
 
+    @Column(name = "license_number", length = 64, nullable = false)
+    private String professionalLicenseNumber;
+
     protected Set<Specialty> getSpecialtiesInternal() {
         if (this.specialties == null) {
             this.specialties = new HashSet<>();
@@ -58,6 +62,10 @@ public class Vet extends Person {
 
     protected void setSpecialtiesInternal(Set<Specialty> specialties) {
         this.specialties = specialties;
+    }
+
+    public void setProfessionalLicenseNumber(String prof) { 
+        this.professionalLicenseNumber = prof; 
     }
 
     @XmlElement
@@ -73,6 +81,10 @@ public class Vet extends Person {
 
     public void addSpecialty(Specialty specialty) {
         getSpecialtiesInternal().add(specialty);
+    }
+
+    public String getProfessionalLicenseNumber() { 
+        return professionalLicenseNumber; 
     }
 
 }
