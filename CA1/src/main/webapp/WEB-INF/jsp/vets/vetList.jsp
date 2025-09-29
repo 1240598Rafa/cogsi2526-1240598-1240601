@@ -14,6 +14,7 @@
                 <th scope="col">Name</th>
                 <th scope="col">Specialties</th>
                 <th scope="col">License</th>
+                <th scope="col">Email</th>
             </tr>
             </thead>
             <tbody>
@@ -30,6 +31,9 @@
                     </td>
                     <td>
                         <c:out value="${vet.professionalLicenseNumber}"/>
+                    </td>
+                    <td>
+                        <c:out value="${vet.Email}"/>
                     </td>
                 </tr>
             </c:forEach>

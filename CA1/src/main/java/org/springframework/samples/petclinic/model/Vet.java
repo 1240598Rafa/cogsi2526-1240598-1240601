@@ -60,6 +60,17 @@ public class Vet extends Person {
         return this.specialties;
     }
 
+    @Column(name = "email", length = 128, nullable = false, unique = true)
+    private String email;
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     protected void setSpecialtiesInternal(Set<Specialty> specialties) {
         this.specialties = specialties;
     }
