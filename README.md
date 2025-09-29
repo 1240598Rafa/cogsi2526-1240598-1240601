@@ -35,6 +35,8 @@ Default Branch (git remote show origin | Select-String 'HEAD branch') :
 Last Commit (git log -1 --date=iso --pretty=format:'%H %cd')
 452b6158dc7cdb934e1d8f81b2bf729b2963cc85 2025-09-27 21:44:32 +0100
 
+## Part 2 - Branches Workflow
+
 # New branch:
 git checkout -b email-field
 
@@ -55,13 +57,17 @@ git push origin v1.3.0
 # Conflit test:
 git checkout -b email-field
 #Change file
+
 git checkout -b main
+
 #Change file in different way
 
-# Try to commit each branch and merge after:
+#Try to commit each branch and merge after:
 git checkout main
 git merge main
 git merge email-field #Error here
+
+This demonstrates how Git forces developers to manually reconcile differences.
 
 # Branch Tracking:
 (Which local branch is configured to track which remote branch?)
@@ -69,13 +75,16 @@ git branch -vv
   email-field aa67be6 Add email field to Vet
 * main        aa67be6 [origin/main] Add email field to Vet
 
-The main branch is configured to track the remote branch origin/main, while the email-field branch is configured to track the branch origin/email-field
+The main branch tracks the remote branch origin/main, while the email-field branch tracks the branch origin/email-field
 
 # Final Tag:
 git tag ca1-part2
 git push origin ca1-part2
 
-# Alternatives:
+tags were created following a semantic versioning style (major.minor.revision) to clearly mark project states.
+
+## Alternative Solutions:
+# Analysis
 Aside from Git, there are alternative version control systems for managing source code evolution. 
 The next closest alternatives are Subversion (SVN), Mercurial (Hg), and Fossil. 
 These tools all have history-tracking functionality, version management, and team collaboration support among developers.
@@ -101,9 +110,9 @@ Branches can be created to isolate features, reintegrated into the trunk once mo
 
 # Why Fossil as Alternative
 
-Fossil is easy to install and use
-It includes version controll, ticket management, wiki
-Easy to carry the historic (use the file .fossil)
+Fossil was chosen for implementation because it is lightweight, portable, and provides an all-in-one solution (VCS, wiki, issue tracking, and web interface) 
+in a single binary, making it the simplest alternative to set up and demonstrate within the scope of this assignment. Git remains the most suitable tool for larger 
+collaborative projects due to its popularity and ecosystem.
 
 cd c:\fossil\CA1-fossil\
 fossil init petclinic-ca1.fossil
@@ -142,3 +151,9 @@ fossil timeline
 20:36:50 [3cb5e1dcd2] initial empty check-in (user: rafa tags: trunk)
 +++ no more data (2) +++
 
+Fossil successfully managed the same workflow: project import, branching, merging, and history visualization.
+
+## Self-Evaluation
+
+Rafael Ferreira(1240598): 50%
+Xavier Ricarte(1240601): 50%
