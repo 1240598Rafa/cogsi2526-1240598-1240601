@@ -65,7 +65,12 @@ git checkout -b main
 #Try to commit each branch and merge after:
 git checkout main
 git merge main
-git merge email-field #Error here
+git merge email-field
+
+error: Merging is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'git add/rm <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
 
 This demonstrates how Git forces developers to manually reconcile differences.
 
