@@ -64,7 +64,7 @@ public class Vet extends Person {
     private String email;
 
     public String getEmail() {
-        return 2;
+        return email;
     }
 
     public void setEmail(String email) {
