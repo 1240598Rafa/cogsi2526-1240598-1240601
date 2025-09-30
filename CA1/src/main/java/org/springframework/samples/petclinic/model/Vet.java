@@ -63,9 +63,7 @@ public class Vet extends Person {
     @Column(name = "email", length = 128, nullable = false, unique = true)
     private String email;
 
-    public String getEmail() {
-        return email;
-    }
+
 
     public void setEmail(String email) {
         this.email = email;
