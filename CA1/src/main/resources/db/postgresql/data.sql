@@ -1,9 +1,9 @@
-INSERT INTO vets VALUES (1, 'James', 'Carter') ON CONFLICT DO NOTHING;
-INSERT INTO vets VALUES (2, 'Helen', 'Leary') ON CONFLICT DO NOTHING;
-INSERT INTO vets VALUES (3, 'Linda', 'Douglas') ON CONFLICT DO NOTHING;
-INSERT INTO vets VALUES (4, 'Rafael', 'Ortega') ON CONFLICT DO NOTHING;
-INSERT INTO vets VALUES (5, 'Henry', 'Stevens') ON CONFLICT DO NOTHING;
-INSERT INTO vets VALUES (6, 'Sharon', 'Jenkins') ON CONFLICT DO NOTHING;
+INSERT INTO vets VALUES (1, 'James', 'Carter','test1@email.com') ON CONFLICT DO NOTHING;
+INSERT INTO vets VALUES (2, 'Helen', 'Leary','test2@email.com') ON CONFLICT DO NOTHING;
+INSERT INTO vets VALUES (3, 'Linda', 'Douglas','test3@email.com') ON CONFLICT DO NOTHING;
+INSERT INTO vets VALUES (4, 'Rafael', 'Ortega','test4@email.com') ON CONFLICT DO NOTHING;
+INSERT INTO vets VALUES (5, 'Henry', 'Stevens','test5@email.com') ON CONFLICT DO NOTHING;
+INSERT INTO vets VALUES (6, 'Sharon', 'Jenkins','test6@email.com') ON CONFLICT DO NOTHING;
 
 INSERT INTO specialties VALUES (1, 'radiology') ON CONFLICT DO NOTHING;
 INSERT INTO specialties VALUES (2, 'surgery') ON CONFLICT DO NOTHING;

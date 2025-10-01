@@ -1,9 +1,9 @@
-INSERT IGNORE INTO vets VALUES (1, 'James', 'Carter');
-INSERT IGNORE INTO vets VALUES (2, 'Helen', 'Leary');
-INSERT IGNORE INTO vets VALUES (3, 'Linda', 'Douglas');
-INSERT IGNORE INTO vets VALUES (4, 'Rafael', 'Ortega');
-INSERT IGNORE INTO vets VALUES (5, 'Henry', 'Stevens');
-INSERT IGNORE INTO vets VALUES (6, 'Sharon', 'Jenkins');
+INSERT IGNORE INTO vets VALUES (1, 'James', 'Carter','test1@email.com');
+INSERT IGNORE INTO vets VALUES (2, 'Helen', 'Leary','test2@email.com');
+INSERT IGNORE INTO vets VALUES (3, 'Linda', 'Douglas','test3@email.com');
+INSERT IGNORE INTO vets VALUES (4, 'Rafael', 'Ortega','test4@email.com');
+INSERT IGNORE INTO vets VALUES (5, 'Henry', 'Stevens','test5@email.com');
+INSERT IGNORE INTO vets VALUES (6, 'Sharon', 'Jenkins','test6@email.com');
 
 INSERT IGNORE INTO specialties VALUES (1, 'radiology');
 INSERT IGNORE INTO specialties VALUES (2, 'surgery');

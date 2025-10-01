@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS vets (
   id INT(4) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   first_name VARCHAR(30),
   last_name VARCHAR(30),
-  INDEX(last_name)
+  INDEX(last_name),
+  email VARCHAR(50)
 ) engine=InnoDB;
 
 CREATE TABLE IF NOT EXISTS specialties (

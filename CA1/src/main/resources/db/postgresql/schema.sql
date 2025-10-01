@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS vets (
   id SERIAL,
   first_name VARCHAR(30),
   last_name VARCHAR(30),
-  CONSTRAINT pk_vets PRIMARY KEY (id)
+  CONSTRAINT pk_vets PRIMARY KEY (id),
+  email VARCHAR(50)
 );
 
 CREATE INDEX IF NOT EXISTS idx_vets_last_name ON vets (last_name);

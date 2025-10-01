@@ -1,9 +1,9 @@
-INSERT INTO vets (first_name, last_name, license_number) VALUES ('James','Carter','VET-1');
-INSERT INTO vets (first_name, last_name, license_number) VALUES ('Helen','Leary','VET-2');
-INSERT INTO vets (first_name, last_name, license_number) VALUES ('Linda','Douglas','VET-3');
-INSERT INTO vets (first_name, last_name, license_number) VALUES ('Rafael','Ortega','VET-4');
-INSERT INTO vets (first_name, last_name, license_number) VALUES ('Henry','Stevens','VET-5');
-INSERT INTO vets (first_name, last_name, license_number) VALUES ('Sharon','Jenkins','VET-6');
+INSERT INTO vets (first_name, last_name, license_number, email) VALUES ('James','Carter','VET-1','test1@email.com');
+INSERT INTO vets (first_name, last_name, license_number, email) VALUES ('Helen','Leary','VET-2','test2@email.com');
+INSERT INTO vets (first_name, last_name, license_number, email) VALUES ('Linda','Douglas','VET-3','test3@email.com');
+INSERT INTO vets (first_name, last_name, license_number, email) VALUES ('Rafael','Ortega','VET-4','test4@email.com');
+INSERT INTO vets (first_name, last_name, license_number, email) VALUES ('Henry','Stevens','VET-5','test5@email.com');
+INSERT INTO vets (first_name, last_name, license_number, email) VALUES ('Sharon','Jenkins','VET-6','test6@email.com');
 
 INSERT INTO specialties VALUES (default, 'radiology');
 INSERT INTO specialties VALUES (default, 'surgery');
