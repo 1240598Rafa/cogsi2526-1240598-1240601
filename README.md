@@ -12,22 +12,22 @@ rm -rf .git
 
 # Initialize and commit to your CA1 repository
 git init
----
+
 git add .
----
+
 git commit -m "Add Petclinic to CA1"
----
+
 git push
 
 # Create and push version tags
 git tag 1.1.0
----
+
 git push origin 1.1.0
 
 git tag v1.2.0
----
+
 git tag ca1-part1 452b615
----
+
 git push origin ca1-part
 
 # Git Log Summary
@@ -44,7 +44,7 @@ git push origin ca1-part
 
 # Git Revert
 git revert 452b615
----
+
 git push
 
 # Default Branch
