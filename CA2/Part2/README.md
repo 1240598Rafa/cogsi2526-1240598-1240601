@@ -183,11 +183,6 @@ The failOnNoDiscoveredTests avoids errors if no tests are found.
 ## Example Integration Test:
 src/integrationTest/java/com/example/IntegrationTest.java
 
-package com.example;
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 public class IntegrationTest {
    
     @Test
@@ -215,9 +210,6 @@ Run with:
 
 “Could not set unknown property ‘sourceCompatibility’”
 Add id 'java' plugin and use the java { … } block or JavaVersion.VERSION_21.
-
-Toolchain wants Java 17
-Remove the toolchain block and set Java 21 as above, or install JDK 17.
 
 HATEOAS classes not found (EntityModel, CollectionModel)
 Add implementation 'org.springframework.boot:spring-boot-starter-hateoas'.
