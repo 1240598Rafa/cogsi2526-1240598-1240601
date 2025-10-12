@@ -1,4 +1,5 @@
 # CA2 – Part 2: Gradle Build Tools (Spring Boot “links” → Gradle)
+
 # Overview
 
 This Part2 converts the Spring Guides “Building REST Services with Spring” (tut-rest/links) sample from Maven to Gradle, then adds custom Gradle tasks:
