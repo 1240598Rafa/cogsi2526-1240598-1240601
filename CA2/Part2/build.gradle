@@ -1,3 +1,5 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
 plugins {
     id 'org.springframework.boot' version '3.3.4'
     id 'io.spring.dependency-management' version '1.1.5'
@@ -39,4 +41,38 @@ task runDist(type: JavaExec) {
     description = "Run the app from the generated distribution"
     mainClass = 'payroll.PayrollApplication'
     classpath = sourceSets.main.runtimeClasspath
+}
+
+task deployToDev {
+    group = "deployment"
+    description = "Deploy to dev environment"
+
+    def deployDir = file("build/deployment/dev")
+
+    tasks.register("cleanDev", Delete) {
+        delete deployDir
+    }
+
+    tasks.register("copyJar", Copy) {
+        dependsOn bootJar
+        from(tasks.named("bootJar").get().archiveFile)
+        into deployDir
+    }
+
+    tasks.register("copyLibs", Copy) {
+        dependsOn "copyJar"
+        from configurations.runtimeClasspath
+        into "${deployDir}/lib"
+    }
+
+    tasks.register("copyConfig", Copy) {
+        dependsOn "copyLibs"
+        from("src/main/resources") {
+            include "*.properties"
+            filter(ReplaceTokens, tokens: [version: project.version])
+        }
+        into("${deployDir}/config")
+    }
+
+    dependsOn "cleanDev", "copyJar", "copyLibs", "copyConfig"
 }
