@@ -209,15 +209,19 @@ Run with:
 # Common Issues and Fixes
 
 “Could not set unknown property ‘sourceCompatibility’”
+
 Add id 'java' plugin and use the java { … } block or JavaVersion.VERSION_21.
 
 HATEOAS classes not found (EntityModel, CollectionModel)
+
 Add implementation 'org.springframework.boot:spring-boot-starter-hateoas'.
 
 Windows “The input line is too long” with .bat
+
 Use runDist with JavaExec (already configured) instead of calling the batch script.
 
 Integration tests not discovered
+
 Ensure file path matches package, class and method are public, and useJUnitPlatform() is set.
 
 # Useful Commands
