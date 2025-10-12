@@ -2,6 +2,7 @@ plugins {
     id 'org.springframework.boot' version '3.3.4'
     id 'io.spring.dependency-management' version '1.1.5'
     id 'java'
+    id 'application'
 }
 
 group = 'com.example'
@@ -10,6 +11,10 @@ version = '1.0.0'
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
+}
+
+application {
+    mainClass = 'payroll.PayrollApplication'
 }
 
 repositories {
@@ -26,4 +31,12 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+task runDist(type: JavaExec) {
+    dependsOn installDist
+    group = "application"
+    description = "Run the app from the generated distribution"
+    mainClass = 'payroll.PayrollApplication'
+    classpath = sourceSets.main.runtimeClasspath
 }
