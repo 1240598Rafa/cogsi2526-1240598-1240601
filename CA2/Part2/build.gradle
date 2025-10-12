@@ -43,6 +43,15 @@ task runDist(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
 }
 
+task zipJavadoc(type: Zip) {
+    dependsOn javadoc
+    group = "documentation"
+    description = "Generate and zip the project Javadoc"
+    from javadoc.destinationDir
+    archiveFileName = "javadoc-${version}.zip"
+    destinationDirectory = file("$buildDir/docs")
+}
+
 task deployToDev {
     group = "deployment"
     description = "Deploy to dev environment"
