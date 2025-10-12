@@ -13,7 +13,7 @@ integrationTest – separate source set and task for integration tests.
 
 The project name is cogsi and it runs on port 8080.
 
-#Step 1 — Get the source and verify (Maven)
+# Step 1 — Get the source and verify (Maven)
 
 git clone https://github.com/spring-guides/tut-rest.git
 cd tut-rest/links
