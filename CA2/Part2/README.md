@@ -232,8 +232,14 @@ Ensure file path matches package, class and method are public, and useJUnitPlatf
 
 # Useful Commands
 .\gradlew clean build
+
 .\gradlew bootRun
+
 .\gradlew runDist
+
 .\gradlew zipJavadoc
+
 .\gradlew deployToDev
+
 .\gradlew integrationTest
+
