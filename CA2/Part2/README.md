@@ -16,8 +16,11 @@ The project name is cogsi and it runs on port 8080.
 # Step 1 — Get the source and verify (Maven)
 
 git clone https://github.com/spring-guides/tut-rest.git
+
 cd tut-rest/links
+
 ../mvnw spring-boot:run
+
 Open http://localhost:8080/employees
 
 This confirms the original sample works.
@@ -27,18 +30,22 @@ This confirms the original sample works.
 Created an empty folder for Part 2 and initialized Gradle
 
 mkdir Part2
+
 cd Part2
+
 gradle init --type java-application
 
 # Step 3 — Copy to Part 2 the Spring links folder
 
 Replace the generated src with the links src
+
 Create settings.gradle:
+
 rootProject.name = 'cogsi'
 
 # Step 4 — Gradle build file
 
-# Java and Application Setup
+## Java and Application Setup
 
 Configured in build.gradle:
 
@@ -53,6 +60,7 @@ application {
 
 
 Explanation:
+
 Defines Java 21 as the build version and tells Gradle which class contains main().
 
 # Task: runDist
@@ -66,6 +74,7 @@ task runDist(type: JavaExec) {
 
 
 What it does:
+
 Runs the Spring Boot app through Gradle directly, avoiding Windows long-path issues with the .bat file.
 
 # Task: deployToDev
@@ -106,10 +115,15 @@ task deployToDev {
 
 
 What it does:
+
 Deletes any previous deployment folder.
+
 Copies the built JAR.
+
 Copies only runtime dependencies into /lib.
+
 Copies configuration files (.properties) into /config replacing version tokens.
+
 Result: A ready-to-run deployment at build/deployment/dev.
 
 # Task: zipJavadoc
@@ -124,6 +138,7 @@ task zipJavadoc(type: Zip) {
 
 
 What it does:
+
 Builds the project’s Javadoc and compresses it into a ZIP file stored in build/docs.
 
 # Integration Tests
@@ -139,6 +154,7 @@ sourceSets {
 
 
 Purpose:
+
 Creates a separate folder (src/integrationTest/java) for integration tests, independent from unit tests.
 
 # Task integrationTest
@@ -155,7 +171,9 @@ task integrationTest(type: Test) {
 
 
 Purpose:
+
 Runs all integration tests using JUnit 5 after unit tests.
+
 The failOnNoDiscoveredTests avoids errors if no tests are found.
 
 # Example Integration Test:
@@ -175,6 +193,7 @@ public class IntegrationTest {
 
 
 Run with:
+
 .\gradlew integrationTest
 
 # Summary
