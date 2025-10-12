@@ -80,6 +80,7 @@ Runs the Spring Boot app through Gradle directly, avoiding Windows long-path iss
 ## Task: deployToDev
 
 task deployToDev {
+    
     group = "deployment"
     description = "Deploy to dev environment"
 
@@ -128,6 +129,7 @@ Result: A ready-to-run deployment at build/deployment/dev.
 
 ## Task: zipJavadoc
 task zipJavadoc(type: Zip) {
+    
     dependsOn javadoc
     group = "documentation"
     description = "Generate and zip the project Javadoc"
@@ -144,6 +146,7 @@ Builds the project’s Javadoc and compresses it into a ZIP file stored in build
 ## Integration Tests
 Source Set
 sourceSets {
+    
     integrationTest {
         java.srcDir file('src/integrationTest/java')
         resources.srcDir file('src/integrationTest/resources')
@@ -160,6 +163,7 @@ Creates a separate folder (src/integrationTest/java) for integration tests, inde
 ## Task integrationTest
 
 task integrationTest(type: Test) {
+    
     description = 'Run integration tests'
     group = 'verification'
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
@@ -185,6 +189,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class IntegrationTest {
+   
     @Test
     public void testEnvironmentIsWorking() {
         assertTrue(true);
