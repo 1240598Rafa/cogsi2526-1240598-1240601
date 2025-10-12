@@ -50,11 +50,13 @@ rootProject.name = 'cogsi'
 Configured in build.gradle:
 
 java {
+
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
 
 application {
+
     mainClass = 'payroll.PayrollApplication'
 }
 
@@ -65,11 +67,13 @@ Defines Java 21 as the build version and tells Gradle which class contains main(
 
 ## Task: runDist
 task runDist(type: JavaExec) {
+
     dependsOn installDist
     group = "application"
     description = "Run the app from the generated distribution"
     mainClass = 'payroll.PayrollApplication'
     classpath = sourceSets.main.runtimeClasspath
+    
 }
 
 
