@@ -63,7 +63,7 @@ Explanation:
 
 Defines Java 21 as the build version and tells Gradle which class contains main().
 
-# Task: runDist
+## Task: runDist
 task runDist(type: JavaExec) {
     dependsOn installDist
     group = "application"
@@ -77,7 +77,7 @@ What it does:
 
 Runs the Spring Boot app through Gradle directly, avoiding Windows long-path issues with the .bat file.
 
-# Task: deployToDev
+## Task: deployToDev
 
 task deployToDev {
     group = "deployment"
@@ -126,7 +126,7 @@ Copies configuration files (.properties) into /config replacing version tokens.
 
 Result: A ready-to-run deployment at build/deployment/dev.
 
-# Task: zipJavadoc
+## Task: zipJavadoc
 task zipJavadoc(type: Zip) {
     dependsOn javadoc
     group = "documentation"
@@ -141,7 +141,7 @@ What it does:
 
 Builds the project’s Javadoc and compresses it into a ZIP file stored in build/docs.
 
-# Integration Tests
+## Integration Tests
 Source Set
 sourceSets {
     integrationTest {
@@ -157,7 +157,7 @@ Purpose:
 
 Creates a separate folder (src/integrationTest/java) for integration tests, independent from unit tests.
 
-# Task integrationTest
+## Task integrationTest
 
 task integrationTest(type: Test) {
     description = 'Run integration tests'
@@ -176,7 +176,7 @@ Runs all integration tests using JUnit 5 after unit tests.
 
 The failOnNoDiscoveredTests avoids errors if no tests are found.
 
-# Example Integration Test:
+## Example Integration Test:
 src/integrationTest/java/com/example/IntegrationTest.java
 
 package com.example;
