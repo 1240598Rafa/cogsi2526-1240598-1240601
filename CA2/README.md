@@ -626,7 +626,7 @@ This makes it the most effective and well-rounded solution for the majority of c
 
 
 
-### Why Gradle Was Selected
+### Why Gradle is the Best Opion
 
 Gradle combines the best of both worlds — convenience of Maven and flexibility of Ant — and brings with it the advantages of performance optimization of recent times.
 Its Groovy/Kotlin DSL enables developers to script multi-step procedures like automated backups, zipping, deployment, and testing in just a few lines.
@@ -639,3 +639,8 @@ Gradle is faster (caching and incremental builds).
 Gradle is more expressive (DSL scripting instead of XML).
 Gradle is more integrated in newer systems like Spring Boot and CI/CD pipelines.
 Due to these, Gradle was selected to be utilized as the major build automation tool for this project.
+
+# Grade Division
+
+Rafael Ferreira - 50%
+Xavier Ricarte - 50%
