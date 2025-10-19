@@ -640,6 +640,167 @@ Gradle is more expressive (DSL scripting instead of XML).
 Gradle is more integrated in newer systems like Spring Boot and CI/CD pipelines.
 Due to these, Gradle was selected to be utilized as the major build automation tool for this project.
 
+### Implementation Design Using Maven
+
+If Maven were used instead of Gradle, the same results could be achieved through a pom.xml configuration file that defines the project’s structure, dependencies, plugins, 
+and lifecycle phases.
+
+1. Project Structure
+
+The Maven project would follow the standard directory layout:
+
+/src
+ ├── main/java          → application source code
+ ├── test/java          → unit tests (JUnit)
+ └── resources           → configuration and data files
+/pom.xml                 → build and dependency configuration
+
+This structure is enforced automatically by Maven, and most IDEs (IntelliJ, Eclipse, VS Code) recognize it without needing extra setup.
+
+2. Declaring Dependencies
+
+Inside the pom.xml, dependencies would be added under the <dependencies> section.
+For example, to include Log4J and JUnit 5 (they are showned bellowed respectively) as used in the Gradle project:
+
+<dependencies>
+  <dependency>
+    <groupId>org.apache.logging.log4j</groupId>
+    <artifactId>log4j-core</artifactId>
+    <version>2.11.2</version>
+  </dependency>
+  <dependency>
+    <groupId>org.apache.logging.log4j</groupId>
+    <artifactId>log4j-api</artifactId>
+    <version>2.11.2</version>
+  </dependency>
+
+  <dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter-api</artifactId>
+    <version>5.10.0</version>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter-engine</artifactId>
+    <version>5.10.0</version>
+    <scope>test</scope>
+  </dependency>
+</dependencies>
+
+This will automatically download all libraries from Maven Central during the build.
+
+3. Configuring the Build and Java Version
+
+To ensure the same JDK version is used, Maven uses the maven-compiler-plugin:
+
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <version>3.11.0</version>
+      <configuration>
+        <source>17</source>
+        <target>17</target>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>
+
+This is the equivalent of the java { toolchain { languageVersion = 17 } } block in Gradle.
+
+4. Automating Custom Tasks
+
+Gradle enables defining tasks such as backup and zipBackup using Groovy code.
+In Maven, this is accomplished with plugins, since Maven does not have a way of directly executing Groovy logic.
+
+To copy files (like a backup), the maven-antrun-plugin or maven-resources-plugin can be utilized.
+
+To create a .zip file, to utilize maven-assembly-plugin is the most straightforward approach.
+
+Example configuration:
+
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-assembly-plugin</artifactId>
+  <version>3.6.0</version>
+  <configuration>
+    <descriptorRefs>
+      <descriptorRef>jar-with-dependencies</descriptorRef>
+    </descriptorRefs>
+    <finalName>backup</finalName>
+    <appendAssemblyId>false</appendAssemblyId>
+    <archive>
+      <manifest>
+        <mainClass>basic_demo.App</mainClass>
+      </manifest>
+    </archive>
+  </configuration>
+  <executions>
+    <execution>
+      <id>make-assembly</id>
+      <phase>package</phase>
+      <goals>
+        <goal>single</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
+
+This configuration would package the entire project and its dependencies into a single zip or jar archive — the same goal as the Gradle zipBackup task.
+
+5. Running and Testing the Application
+
+To run and test the project, Maven uses predefined lifecycle phases and plugins:
+
+Compile the code:
+
+mvn compile
+
+Run unit tests:
+
+mvn test
+
+Package the project into a JAR or ZIP:
+
+mvn package
+
+Run the application: (using the exec-maven-plugin)
+
+mvn exec:java -Dexec.mainClass="basic_demo.ChatServerApp"
+
+These commands correspond directly to the Gradle commands:
+
+.\gradlew.bat build
+.\gradlew.bat test
+.\gradlew.bat runServer
+.\gradlew.bat zipBackup
+
+6. Version Control Integration
+
+The same Git workflow could be used as Gradle:
+
+git add .
+git commit -m "Add pom.xml with Maven build configuration"
+git tag ca2-maven-alternative
+git push origin main
+git push origin ca2-maven-alternative
+
+This would mark the Maven-based implementation as an alternative version in the repository.
+
+7. Summary
+
+If Maven were used:
+
+The build logic would be specified in pom.xml.
+Dependencies and plugins would reflect the Gradle setup.
+Plugins would replace Gradle tasks (assembly for bundling, exec for running).
+The workflow (compile - test - package) would be the same, but only the syntax and extensibility would differ.
+
+While the same results are attainable, Maven's XML structure makes it harder to maintain and extend compared to Gradle's short, programmatic DSL.
+Because of this, Gradle remains the superior choice for this purpose - but Maven demonstrates how precisely the same functional goals can be met more conventionally.
+
 # Grade Division
 
 Rafael Ferreira - 50%
