@@ -6,8 +6,10 @@ sudo apt install -y git openjdk-17-jdk gradle netcat
 
 # CA2 Repo Clone
 cd /home/vagrant
-git clone https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git repo
-cd repo/cogsi2526-1240598-1240600/CA2/part2
+git clone https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git
+cd cogsi2526-1240598-1240601/CA2/Part2
+
+mkdir -p src/main/resources
 
 # DB Connection
 cat > src/main/resources/application.properties <<EOF
