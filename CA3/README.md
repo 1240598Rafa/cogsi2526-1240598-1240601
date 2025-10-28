@@ -1,7 +1,7 @@
 # CA3 - Part 1: Vagrant and Gradle Environment
 
 This part of the assignment required the configuration of a reproducible environment using Vagrant and Gradle, so that building and running a Spring Boot application could be automated.
-The goal is to ensure that every developer can run the same project under the same conditions — same OS, same JDK, same Gradle version — without having to setup manually.
+The goal is to ensure that every developer can run the same project under the same conditions - same OS, same JDK, same Gradle version - without having to setup manually.
 
 ## Step 1 — Vagrant Environment Creation
 
@@ -13,6 +13,8 @@ So a new directory was created as /CA3/Part1/:
 mkdir /CA3/Part1/
 
 Then a Vagrantfile was created in the /CA3/Part1/ folder with the following configuration:
+
+vagrant plugin install vagrant-vmware-desktop
 
 Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/jammy64"
