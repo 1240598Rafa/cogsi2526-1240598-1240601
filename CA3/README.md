@@ -25,9 +25,9 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", path: "provision.sh"
 end
 
-Explanation:
+Explanation of the code on the vagrant file:
 
-Box - specifies the base OS image (Ubuntu 22.04, codename jammy).
+Box - specifies the base OS image (Ubuntu 22.04 which goes by codename jammy).
 
 Forwarded port - exposes the guest port 8080 to the host, so http://localhost:8080 opens the application.
 
@@ -53,14 +53,11 @@ export PATH=$PATH:/opt/gradle/gradle-8.7/bin
 cd /home/vagrant
 git clone https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git project
 
-Explanation:
+Explanation of the code:
 
 Installs the JDK 17, required for Spring Boot compatibility.
-
 Downloads and extracts Gradle 8.7 to /opt/gradle.
-
 Updates the system PATH to use the new Gradle installation.
-
 Clones the project repository automatically into /home/vagrant/project.
 
 This ensures a fully self-contained environment: once vagrant up is executed, the system is ready for building and running the project without any manual setup.
@@ -138,14 +135,11 @@ REST endpoint /employees responds correctly.
 
 ## Why this setup
 
-This solution was chosen because it guarantees full reproducibility, isolation, and automation:
+This solution was build like this because it guarantees full reproducibility, isolation, and automation:
 
 Reproducibility: Vagrant + Gradle Wrapper + JDK Toolchain ensure identical builds.
-
 Isolation: The VM isolates all dependencies, avoiding OS-level conflicts.
-
 Automation: The provisioning script installs everything automatically.
-
 Compatibility: Uses Java 17, supported by Spring Boot 3.x.
 
 This environment can be destroyed (vagrant destroy) and recreated (vagrant up) with the exact same results, which is essential for DevOps workflows.
@@ -159,8 +153,3 @@ git commit -m "CA3 Part1 - Vagrant Environment Setup"
 git push origin main
 git tag ca3-part1
 git push origin ca3-part1
-
-## Summary
-
-This part demonstrated the creation of a fully automated development environment using Vagrant and Gradle for a Spring Boot application.
-Through a single vagrant up command, the entire stack — OS, Java, Gradle, and the project — becomes ready for execution, ensuring consistency, reproducibility, and ease of collaboration.
