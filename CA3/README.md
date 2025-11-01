@@ -155,3 +155,209 @@ git commit -m "CA3 Part1 - Vagrant Environment Setup"
 git push origin main
 git tag ca3-part1
 git push origin ca3-part1
+
+
+# CA3 – Part 2: Two Virtual Machines with Vagrant
+
+## Project Overview
+This part of the assignment implements a virtualized environment using **Vagrant** and **VirtualBox** with two Ubuntu virtual machines:
+- **db VM** – runs an **H2 database** in server mode.  
+- **app VM** – runs a **Spring Boot REST API** connected to the H2 database.
+
+The goal was to simulate a realistic setup where the application and database run on different servers, with all configuration and deployment steps automated.
+
+---
+
+## System Description
+
+### Architecture
+Both machines communicate through a private internal network:
+- **db**: `192.168.56.10`
+- **app**: `192.168.56.11`
+
+This configuration allows communication between the two VMs while keeping them isolated from the host system.
+
+---
+
+## Implementation Summary
+
+### Vagrantfile
+The `Vagrantfile` defines both VMs, assigns IP addresses, and links each VM to its corresponding provisioning script:
+- `provision_db.sh` – sets up the H2 database.  
+- `provision_app.sh` – installs dependencies, builds, and runs the Spring Boot project.
+
+**Command to start everything:**
+```bash
+vagrant up
+```
+
+Other useful Vagrant commands:
+```bash
+vagrant ssh db       # Access the database VM
+vagrant ssh app      # Access the application VM
+vagrant halt         # Stop both VMs
+vagrant destroy -f   # Remove both VMs completely
+```
+
+---
+
+## Database Provisioning (`provision_db.sh`)
+
+### Step 1 – Update system and install dependencies
+Installs Java, firewall tools, and utilities required to run the H2 database.
+```bash
+sudo apt update -y
+sudo apt install -y openjdk-17-jdk ufw wget unzip
+```
+
+### Step 2 – Create installation directory and download H2
+Creates `/opt/h2` and downloads the H2 jar directly from Maven Central.
+```bash
+mkdir -p /opt/h2
+cd /opt/h2
+wget -q https://repo1.maven.org/maven2/com/h2database/h2/2.4.240/h2-2.4.240.jar -O h2.jar
+```
+
+### Step 3 – Start H2 in server mode
+Runs the H2 database in TCP mode to allow remote connections from the app VM.
+```bash
+nohup java -cp /opt/h2/h2.jar org.h2.tools.Server -tcp -tcpAllowOthers -tcpPort 9092 -ifNotExists &
+```
+
+### Step 4 – Configure firewall
+Allows only the app VM (192.168.56.11) to access the H2 port (9092) and enables UFW.
+```bash
+sudo ufw allow from 192.168.56.11 to any port 9092 proto tcp
+sudo ufw --force enable
+```
+
+### Step 5 – Check H2 status
+Verifies that the database is active and listening.
+```bash
+ss -tulpn | grep 9092
+```
+
+---
+
+## Application Provisioning (`provision_app.sh`)
+
+### Step 1 – Install required packages
+Installs Java 21, Gradle, Git, and utilities for the build process.
+```bash
+sudo apt update -y
+sudo apt install -y openjdk-21-jdk git gradle netcat dos2unix
+```
+
+### Step 2 – Clone the project repository
+Retrieves the CA2 repository from GitHub.
+```bash
+cd /home/vagrant
+git clone https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git
+cp -r cogsi2526-1240598-1240601 /home/vagrant/app
+cd /home/vagrant/app/CA2/Part2
+```
+
+### Step 3 – Ensure Gradle wrapper is executable
+Converts Windows-style line endings and grants execution permissions.
+```bash
+dos2unix gradlew
+chmod +x gradlew
+```
+
+### Step 4 – Create the Spring Boot configuration file
+Generates `application.properties` with connection details to the H2 server.
+```bash
+mkdir -p src/main/resources
+cat > src/main/resources/application.properties <<EOF
+spring.datasource.url=jdbc:h2:tcp://192.168.56.10:9092/~/testdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.h2.console.enabled=true
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+server.port=8080
+EOF
+```
+
+### Step 5 – Wait for the database to become reachable
+Checks if the H2 server is available before building the project.
+```bash
+echo "Waiting for H2 database..."
+until nc -z 192.168.56.10 9092; do
+  sleep 2
+done
+echo "Database is reachable. Proceeding with build."
+```
+
+### Step 6 – Build the Spring Boot project
+Compiles the project using the Gradle wrapper.
+```bash
+./gradlew clean build
+```
+
+### Step 7 – Run the Spring Boot application
+Finds the correct jar file and runs it in the background.
+```bash
+JAR_FILE=$(find build/libs -name "*.jar" ! -name "*-plain.jar" | head -n 1)
+nohup java -jar "$JAR_FILE" > /home/vagrant/app/app.log 2>&1 &
+```
+
+---
+
+## Validation and Testing
+
+### 1. Check database connectivity
+Ensures that the app VM can connect to the H2 database.
+```bash
+nc -zv 192.168.56.10 9092
+```
+
+### 2. Build verification
+Rebuild the project manually to confirm functionality.
+```bash
+./gradlew clean build
+```
+
+### 3. Test REST API endpoint
+Access from the host browser:
+```
+http://192.168.56.11:8080/employees
+```
+
+### 4. Persistence check
+Stop and restart the environment:
+```bash
+vagrant halt
+vagrant up
+```
+
+### 5. Process and logs verification
+Inside each VM:
+```bash
+# On db VM
+ps aux | grep h2
+ss -tulpn | grep 9092
+
+# On app VM
+curl http://localhost:8080/employees
+tail -n 20 /home/vagrant/app/app.log
+```
+
+---
+
+## Security and Networking
+- Both VMs operate within a **private network**, isolated from external access.  
+- Firewall rules on the db VM allow access only from the app VM.  
+- No ports are exposed to the host machine.  
+- SSH access is handled automatically by Vagrant.
+
+---
+
+## Conclusion
+This project automates the deployment of a two-VM distributed environment.  
+With a single command:
+```bash
+vagrant up
+```
+both machines are created, provisioned, configured, and started automatically.
