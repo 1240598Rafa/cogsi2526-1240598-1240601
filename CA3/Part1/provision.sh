@@ -2,7 +2,7 @@ export DEBIAN_FRONTEND=noninteractive
 set -e
 
 apt-get update -y
-apt-get install -y git openjdk-17-jdk wget unzip
+apt-get install -y git openjdk-21-jdk wget unzip
 
 if [ ! -d "/opt/gradle/gradle-8.7" ]; then
   wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip -P /tmp
