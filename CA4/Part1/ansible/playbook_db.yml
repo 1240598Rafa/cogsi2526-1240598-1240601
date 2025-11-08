@@ -1,0 +1,119 @@
+---
+- name: Provision Database VM
+  hosts: all
+  connection: local
+  become: true
+
+  tasks:
+    - name: Update packages
+      apt:
+        update_cache: yes
+
+    - name: Install Java and utilities
+      apt:
+        name:
+          - openjdk-21-jdk
+          - wget
+          - unzip
+          - ufw
+        state: present
+
+    - name: Create H2 directory
+      file:
+        path: /opt/h2
+        state: directory
+        mode: '0750'
+
+    - name: Download H2 jar
+      get_url:
+        url: "https://repo1.maven.org/maven2/com/h2database/h2/2.4.240/h2-2.4.240.jar"
+        dest: /opt/h2/h2.jar
+
+    - name: Start H2 TCP server
+      shell: |
+        nohup java -cp /opt/h2/h2.jar org.h2.tools.Server \
+          -tcp -tcpAllowOthers -tcpPort 9092 -ifNotExists > /opt/h2/h2.log 2>&1 &
+      args:
+        executable: /bin/bash
+
+    - name: Allow app VM access to H2
+      ufw:
+        rule: allow
+        port: 9092
+        proto: tcp
+        from_ip: 192.168.56.11
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+
+    - name: Wait for H2 to start
+      wait_for:
+        port: 9092
+        state: started
+        timeout: 30
+
+    # === User and group management ===
+    - name: Ensure group 'developers' exists
+      group:
+        name: developers
+        state: present
+
+    - name: Ensure user 'devuser' exists
+      user:
+        name: devuser
+        group: developers
+        shell: /bin/bash
+        create_home: yes
+        password: "{{ 'devpassword' | password_hash('sha512') }}"
+
+    - name: Ensure /opt/h2 directory permissions
+      file:
+        path: /opt/h2
+        owner: devuser
+        group: developers
+        mode: '0770'
+
+    - name: Confirm DB provisioning
+      debug:
+        msg: "H2 running on port 9092"
+
+     # === PAM Security Policy ===
+    - name: Ensure libpam-pwquality installed
+      apt:
+        name: libpam-pwquality
+        state: present
+
+    - name: Configure password complexity in /etc/security/pwquality.conf
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^{{ item.key }}'
+        line: "{{ item.key }} = {{ item.value }}"
+        state: present
+      loop:
+        - { key: 'minlen', value: '12' }
+        - { key: 'minclass', value: '3' }
+        - { key: 'maxrepeat', value: '2' }
+        - { key: 'maxsequence', value: '2' }
+        - { key: 'usercheck', value: '1' }
+
+    - name: Enforce password history (last 5 passwords)
+      lineinfile:
+        path: /etc/pam.d/common-password
+        regexp: '^password.*pam_unix\.so'
+        line: 'password requisite pam_unix.so obscure use_authtok remember=5 sha512'
+        state: present
+        backup: yes
+
+    - name: Configure account lockout after 5 failed logins (10 min)
+      lineinfile:
+        path: /etc/pam.d/common-auth
+        insertafter: '^auth'
+        line: 'auth required pam_tally2.so deny=5 unlock_time=600 onerr=fail audit even_deny_root_account'
+        state: present
+        backup: yes
+
+    - name: Confirm PAM policy applied
+      debug:
+        msg: "PAM security policy successfully configured"

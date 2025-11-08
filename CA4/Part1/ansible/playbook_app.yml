@@ -1,0 +1,173 @@
+---
+- name: Provision Application VM
+  hosts: all
+  connection: local
+  become: true
+
+  tasks:
+
+    # Base system preparation
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - openjdk-21-jdk
+          - git
+          - gradle
+          - netcat
+          - dos2unix
+        state: present
+
+    # === Clone repo to temp location ===
+    - name: Clone CA2 repository
+      git:
+        repo: "https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git"
+        dest: /home/vagrant/cogsi_repo
+        force: yes
+
+    # === Copy to working app directory ===
+    - name: Copy project to /home/vagrant/app
+      copy:
+        src: /home/vagrant/cogsi_repo/
+        dest: /home/vagrant/app/
+        remote_src: yes
+        mode: preserve
+
+    # === Fix permissions for Gradle wrapper ===
+    - name: Ensure Gradle wrapper is executable
+      shell: |
+        cd /home/vagrant/app/CA2/Part2
+        dos2unix gradlew
+        chmod +x gradlew
+      args:
+        executable: /bin/bash
+
+    # === Create configuration file ===
+    - name: Ensure resources directory exists
+      file:
+        path: /home/vagrant/app/CA2/Part2/src/main/resources
+        state: directory
+        mode: '0755'
+
+    - name: Create application.properties for remote H2
+      copy:
+        dest: /home/vagrant/app/CA2/Part2/src/main/resources/application.properties
+        content: |
+          spring.datasource.url=jdbc:h2:tcp://192.168.56.10:9092/~/testdb
+          spring.datasource.driverClassName=org.h2.Driver
+          spring.datasource.username=sa
+          spring.datasource.password=
+          spring.jpa.hibernate.ddl-auto=update
+          spring.h2.console.enabled=true
+          spring.jpa.show-sql=true
+          server.port=8080
+
+    # === Wait for H2 to become reachable ===
+    - name: Wait for H2 database to be ready
+      shell: |
+        until nc -z 192.168.56.10 9092; do
+          sleep 2
+        done
+      args:
+        executable: /bin/bash
+
+    # === Build the Spring Boot project ===
+    - name: Build Spring Boot app
+      shell: |
+        cd /home/vagrant/app/CA2/Part2
+        ./gradlew clean build
+      args:
+        executable: /bin/bash
+
+    # === Run the built jar ===
+    - name: Run Spring Boot jar in background
+      shell: |
+        cd /home/vagrant/app/CA2/Part2
+        JAR_FILE=$(find build/libs -name "*.jar" ! -name "*-plain.jar" | head -n 1)
+        if [ -f "$JAR_FILE" ]; then
+          nohup java -jar "$JAR_FILE" > /home/vagrant/app/app.log 2>&1 &
+        fi
+      args:
+        executable: /bin/bash
+
+    # === Check that app is running ===
+    - name: Wait for Spring Boot app to start
+      wait_for:
+        host: 0.0.0.0
+        port: 8080
+        state: started
+        delay: 10
+        timeout: 300
+
+    # === User and group management ===
+    - name: Ensure group 'developers' exists
+      group:
+        name: developers
+        state: present
+
+    - name: Ensure user 'devuser' exists
+      user:
+        name: devuser
+        group: developers
+        shell: /bin/bash
+        create_home: yes
+        password: "{{ 'devpassword' | password_hash('sha512') }}"
+
+    - name: Ensure /home/vagrant/app directory permissions
+      file:
+        path: /home/vagrant/app
+        owner: devuser
+        group: developers
+        mode: '0770'
+
+    - name: Health check via HTTP
+      uri:
+        url: "http://localhost:8080"
+        status_code: 200
+      register: app_check
+
+    - name: Show app response
+      debug:
+        msg: "App running and returned HTTP {{ app_check.status }}"
+    
+     # === PAM Security Policy ===
+    - name: Ensure libpam-pwquality installed
+      apt:
+        name: libpam-pwquality
+        state: present
+
+    - name: Configure password complexity in /etc/security/pwquality.conf
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^{{ item.key }}'
+        line: "{{ item.key }} = {{ item.value }}"
+        state: present
+      loop:
+        - { key: 'minlen', value: '12' }
+        - { key: 'minclass', value: '3' }
+        - { key: 'maxrepeat', value: '2' }
+        - { key: 'maxsequence', value: '2' }
+        - { key: 'usercheck', value: '1' }
+
+    - name: Enforce password history (last 5 passwords)
+      lineinfile:
+        path: /etc/pam.d/common-password
+        regexp: '^password.*pam_unix\.so'
+        line: 'password requisite pam_unix.so obscure use_authtok remember=5 sha512'
+        state: present
+        backup: yes
+
+    - name: Configure account lockout after 5 failed logins (10 min)
+      lineinfile:
+        path: /etc/pam.d/common-auth
+        insertafter: '^auth'
+        line: 'auth required pam_tally2.so deny=5 unlock_time=600 onerr=fail audit even_deny_root_account'
+        state: present
+        backup: yes
+
+    - name: Confirm PAM policy applied
+      debug:
+        msg: "PAM security policy successfully configured"

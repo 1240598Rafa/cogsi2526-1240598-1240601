@@ -1,0 +1,33 @@
+Vagrant.configure("2") do |config|
+  config.vm.boot_timeout = 600
+  BOX_IMAGE = "ubuntu/focal64"
+
+  # ---------------- DB VM ----------------
+  config.vm.define "db" do |db|
+    db.vm.box = BOX_IMAGE
+    db.vm.hostname = "cogsidb"
+    db.vm.network "private_network", ip: "192.168.56.10"
+
+    db.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "/vagrant/ansible/playbook_db.yml"
+      ansible.inventory_path = "/vagrant/ansible/hosts.ini"
+      ansible.limit = "db"
+      ansible.install = true
+    end
+  end
+
+  # ---------------- APP VM ----------------
+  config.vm.define "app" do |app|
+    app.vm.box = BOX_IMAGE
+    app.vm.hostname = "cogsiapp"
+    app.vm.network "private_network", ip: "192.168.56.11"
+    app.vm.network "forwarded_port", guest: 8080, host: 8080, auto_correct: true
+
+    app.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "/vagrant/ansible/playbook_app.yml"
+      ansible.inventory_path = "/vagrant/ansible/hosts.ini"
+      ansible.limit = "app"
+      ansible.install = true
+    end
+  end
+end
