@@ -1,3 +1,258 @@
+# CA4 Configuration Management - Part 1
+
+## Overview
+
+This project automates the provisioning and configuration of two virtual machines using **Vagrant** and **Ansible**.
+The goal is to reproduce the previous CA3 environment — a Spring Boot REST API connected to an H2 Database — but now entirely managed with **Configuration Management principles** (idempotency, modularity, and automation).
+
+Two VMs are created:
+
+* **db** → hosts the H2 database.
+* **app** → hosts the Spring Boot application.
+
+---
+
+## Vagrant Structure
+
+### `Vagrantfile`
+
+Defines both VMs and runs their Ansible playbooks locally using the `ansible_local` provisioner.
+
+```
+Vagrant.configure("2") do |config|
+  BOX_IMAGE = "ubuntu/focal64"
+  config.vm.boot_timeout = 600
+
+  config.vm.define "db" do |db|
+    db.vm.box = BOX_IMAGE
+    db.vm.hostname = "cogsidb"
+    db.vm.network "private_network", ip: "192.168.56.10"
+    db.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "/vagrant/ansible/playbook_db.yml"
+      ansible.inventory_path = "/vagrant/ansible/hosts.ini"
+      ansible.limit = "db"
+      ansible.install = true
+    end
+  end
+
+  config.vm.define "app" do |app|
+    app.vm.box = BOX_IMAGE
+    app.vm.hostname = "cogsiapp"
+    app.vm.network "private_network", ip: "192.168.56.11"
+    app.vm.network "forwarded_port", guest: 8080, host: 8080, auto_correct: true
+    app.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "/vagrant/ansible/playbook_app.yml"
+      ansible.inventory_path = "/vagrant/ansible/hosts.ini"
+      ansible.limit = "app"
+      ansible.install = true
+    end
+  end
+end
+```
+
+---
+
+## Inventory
+
+`ansible/hosts.ini`
+
+```
+[db]
+192.168.56.10
+
+[app]
+192.168.56.11
+```
+
+---
+
+## Database Provisioning – `playbook_db.yml`
+
+### Summary of tasks
+
+1. Install OpenJDK, UFW, wget, and unzip
+2. Download and start the **H2 Database** in TCP mode on port 9092
+3. Configure UFW to allow only the app VM (192.168.56.11)
+4. Create group `developers` and user `devuser`
+5. Restrict `/opt/h2` access to that group
+6. Apply PAM password and lockout policies
+
+### Code highlights
+
+```
+- name: Download H2 jar
+  get_url:
+    url: "https://repo1.maven.org/maven2/com/h2database/h2/2.4.240/h2-2.4.240.jar"
+    dest: /opt/h2/h2.jar
+
+- name: Start H2 TCP server
+  shell: |
+    nohup java -cp /opt/h2/h2.jar org.h2.tools.Server \
+      -tcp -tcpAllowOthers -tcpPort 9092 -ifNotExists > /opt/h2/h2.log 2>&1 &
+
+- name: Ensure /opt/h2 directory permissions
+  file:
+    path: /opt/h2
+    owner: devuser
+    group: developers
+    mode: '0770'
+```
+
+---
+
+## Application Provisioning – `playbook_app.yml`
+
+### Summary of tasks
+
+1. Install OpenJDK 21, Git, Gradle, Netcat, and Dos2Unix
+2. Clone the group’s GitHub repository
+3. Copy project to `/home/vagrant/app`
+4. Convert Gradle wrapper format and apply execution permissions
+5. Create `application.properties` with remote DB connection:
+
+   ```
+   spring.datasource.url=jdbc:h2:tcp://192.168.56.10:9092/~/testdb
+   ```
+6. Wait until DB port 9092 is reachable
+7. Build the project with Gradle
+8. Run the Spring Boot JAR in background
+9. Validate with HTTP request on port 8080
+10. Create `developers` group and `devuser`
+11. Restrict access to `/home/vagrant/app`
+12. Apply PAM security policy
+
+### Code highlights
+
+```
+- name: Build Spring Boot app
+  shell: |
+    cd /home/vagrant/app/CA2/Part2
+    ./gradlew clean build
+
+- name: Run Spring Boot jar in background
+  shell: |
+    cd /home/vagrant/app/CA2/Part2
+    JAR_FILE=$(find build/libs -name "*.jar" ! -name "*-plain.jar" | head -n 1)
+    nohup java -jar "$JAR_FILE" > /home/vagrant/app/app.log 2>&1 &
+```
+
+---
+
+## PAM Security Policy
+
+Applied on both VMs:
+
+```
+- name: Configure password complexity
+  lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^{{ item.key }}'
+    line: "{{ item.key }} = {{ item.value }}"
+  loop:
+    - { key: 'minlen', value: '12' }
+    - { key: 'minclass', value: '3' }
+    - { key: 'maxrepeat', value: '2' }
+    - { key: 'maxsequence', value: '2' }
+    - { key: 'usercheck', value: '1' }
+
+- name: Enforce password history (last 5 passwords)
+  lineinfile:
+    path: /etc/pam.d/common-password
+    regexp: '^password.*pam_unix\\.so'
+    line: 'password requisite pam_unix.so obscure use_authtok remember=5 sha512'
+
+- name: Configure account lockout after 5 failed logins
+  lineinfile:
+    path: /etc/pam.d/common-auth
+    insertafter: '^auth'
+    line: 'auth required pam_tally2.so deny=5 unlock_time=600 onerr=fail audit even_deny_root_account'
+```
+
+Result:
+
+* Minimum 12 chars
+* At least 3 character classes
+* No username substrings
+* Password reuse history (5)
+* 10-minute lockout after 5 failures
+
+---
+
+## User and Group Management
+
+Both VMs create:
+
+```
+groupadd developers
+useradd -m -g developers devuser
+```
+
+Access restrictions:
+
+```
+/opt/h2                → devuser:developers 770  
+/home/vagrant/app      → devuser:developers 770
+```
+
+Verification:
+
+```
+drwxrwx--- devuser developers
+```
+
+---
+
+## Idempotency Results
+
+**First Run:**
+
+```
+DB Summary:  ok=10  changed=7  failed=0
+APP Summary: ok=14  changed=10 failed=0
+```
+
+**Second Run (vagrant reload --provision):**
+
+```
+DB Summary:  ok=10  changed=0 failed=0
+APP Summary: ok=14  changed=0 failed=0
+```
+
+The second execution produced no changes, confirming full **idempotency**.
+
+---
+
+## Access Verification
+
+After provisioning, the application is available at:
+
+```
+http://localhost:8080
+```
+
+or at the auto-corrected port shown by Vagrant.
+
+---
+
+## Conclusion
+
+This configuration achieves:
+
+* Fully automated setup of both services (H2 + Spring Boot)
+* Security hardening via PAM
+* Proper user/group permissions
+* Verified idempotent behavior across multiple executions
+
+Final tag to submit:
+
+```
+git add .
+git commit -m "CA4 Part 1 completed"
+git tag ca4
+git push origin main --tags
+```
+
+
 # Alternative Solution – Using SaltStack
 ## Overview
 SaltStack automates the deployment and configuration of both virtual machines (app and db) by defining desired states rather than executing ad-hoc commands.
