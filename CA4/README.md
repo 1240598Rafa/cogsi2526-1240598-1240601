@@ -1,34 +1,33 @@
 # Alternative Solution – Using SaltStack
-
 ## Overview
-
-This alternative replaces Ansible with SaltStack (Salt) as the configuration-management and provisioning tool inside the same Vagrant environment created in CA3.
 SaltStack automates the deployment and configuration of both virtual machines (app and db) by defining desired states rather than executing ad-hoc commands.
 It uses a lightweight agent model (minions) that communicate with a central master via ZeroMQ, allowing parallel execution and continuous state enforcement.
+This makes it a great alternative to Ansible.
 
 ## Alternative Tools Compared with Ansible
-Tool	Architecture	Strengths	Weaknesses	Ideal Use Case
-SaltStack	Master–minion or agentless (salt-ssh)	High speed (ZeroMQ), event-driven automation, strong idempotence	Requires daemon on each VM if not using salt-ssh	Large or long-lived infrastructures needing continuous configuration
-Puppet	Master–agent	Mature ecosystem, declarative DSL, great reporting	Slower convergence, steeper learning curve	Enterprises maintaining strict compliance baselines
-Chef	Master–agent (Ruby DSL)	Fine-grained control, test-driven infrastructure	Requires Ruby, verbose recipes	Complex deployments needing procedural logic
-Terraform	Agentless, push-based via APIs	Excellent for infrastructure provisioning (VMs, cloud)	Not intended for OS-level config management	Multi-cloud or hybrid environment provisioning
-Ansible (base)	Agentless via SSH	Easy to learn, no agents, YAML playbooks	Sequential execution can be slow on many nodes	Small to medium environments or ephemeral setups
-Why SaltStack
+| **Tool**           | **Architecture**                        | **Strengths**                                                    | **Weaknesses**                                     | **Ideal Use Case**                                                   |
+| ------------------ | --------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------- |
+| **SaltStack**      | Master–minion or agentless (*salt-ssh*) | High speed (ZeroMQ), event-driven automation, strong idempotence | Requires daemon on each VM if not using *salt-ssh* | Large or long-lived infrastructures needing continuous configuration |
+| **Puppet**         | Master–agent                            | Mature ecosystem, declarative DSL, great reporting               | Slower convergence, steeper learning curve         | Enterprises maintaining strict compliance baselines                  |
+| **Chef**           | Master–agent (*Ruby DSL*)               | Fine-grained control, test-driven infrastructure                 | Requires Ruby, verbose recipes                     | Complex deployments needing procedural logic                         |
+| **Terraform**      | Agentless, push-based via APIs          | Excellent for infrastructure provisioning (VMs, cloud)           | Not intended for OS-level config management        | Multi-cloud or hybrid environment provisioning                       |
+| **Ansible (base)** | Agentless via SSH                       | Easy to learn, no agents, YAML playbooks                         | Sequential execution can be slow on many nodes     | Small to medium environments or ephemeral setups                     |
 
-SaltStack was chosen because it best combines idempotent configuration, high execution speed, and compatibility with Vagrant-based Linux VMs.
-It achieves the same functional goals as Ansible—automated provisioning, configuration, and verification—but provides faster parallel runs and a more declarative state model.
+
+SaltStack was chosen because it best combines idempotent configuration, high execution speed, and compatibility with Vagrant-based Ubuntu VMs.
+It achieves the same functional goals as Ansible, automated provisioning, configuration, and verification, but provides faster parallel runs and a more declarative state model.
 
 ## Step-by-Step Implementation with SaltStack
 ### Introduction
 
 Now we will show how the alternative was implemented.
-The objective was to replicate the same behavior implemented in CA3 — deploying a Spring Boot application connected to an H2 database — but now orchestrated with SaltStack inside the Vagrant virtual environment.
+The objective was to replicate the same behavior implemented in CA3 - deploying a Spring Boot application connected to an H2 database - but now orchestrated 
+with SaltStack inside the Vagrant virtual environment.
 
 ### Environment Setup
 
 The Vagrant environment from CA3 was reused, containing two VMs:
 
-VM	Role	IP	Hostname
 db	Database Server (H2)	192.168.56.10	cogsidb
 app	Application Server (Spring Boot)	192.168.56.11	cogsiapp
 
@@ -50,7 +49,7 @@ Vagrant.configure("2") do |config|
   end
 end
 
-Comparing to the Vagrantfile from CA3 Part2, we removed app.vm.provision "shell", path: "provision_app.sh" because it was no longer needed.
+Comparing to the Vagrantfile from CA3 Part2, we removed app.vm.provision "shell", path: "provision_app.sh" because it was no longer needed since it will now be automate.
 
 Start both machines:
 
@@ -58,7 +57,7 @@ vagrant up --provider virtualbox
 
 ### SSH Key Configuration
 
-OpenSSH Server didn't need to be installed since it is isntalled on Ubuntu/Focal64 by default
+OpenSSH Server didn't need to be installed since it is installed on Ubuntu by default
 
 #### Enable passwordless SSH between VMs
 
@@ -78,32 +77,19 @@ Which created 2 files, a public key on ~/.ssh/id_rsa.pub and a private on ~/.ssh
 Because ssh-copy-id failed, we copied it manually:
 cat ~/.ssh/id_rsa.pub
 
-Then on the DB VM we used:
+Then on the DB VM we opened the authorized keys file:
 sudo nano /home/vagrant/.ssh/authorized_keys 
 And pasted the public key from the APP VM
 
-After it we adjusted the permissions:
+Afterward we adjusted the permissions:
 chmod 600 ~/.ssh/id_rsa
 chown vagrant:vagrant ~/.ssh/id_rsa
 
-Then ran, to test if we could connecto from APP VM to DB VM using SSH, the command:
+Then ran, to test if we could connecto from APP VM to DB VM using SSH:
 ssh vagrant@192.168.56.10
 
 Which worked without using a password, confirming that the key-based configuration was correct.
 This step was crucial because salt-ssh depends entirely on passwordless SSH access between nodes.
-
-#### Testing Salt-SSH connectivity
-
-To test the Salt-SSH we used:
-
-salt-ssh -c /home/vagrant/salt_config/etc '*' test.ping
-
-After fixing SSH permissions and ownership, it returned:
-
-app:
-    True
-db:
-    True
 
 ### Installing and Preparing SaltStack
 #### Installing SaltStack via pip
@@ -158,7 +144,8 @@ This file acts as a local configuration for Salt-SSH, it replaces the role of a 
 
 ### Creating the Roster
 
-Since SaltStack doesn't use an inventory file like Ansible, it uses a roster file which tells Salt-SSH which machines to manage, how to connecto to them and wheter to use sudo or not.
+Since SaltStack doesn't use an inventory of hosts file like Ansible, it uses a roster file which tells Salt-SSH which machines to manage, how to connect 
+to them and wheter to use sudo or not.
 The file was created on:
 sudo nano /etc/salt/roster
 
@@ -196,12 +183,9 @@ Each .sls file in SaltStack defines the desired state of a system - what should 
 They are declarative, like Ansible playbooks.
 When Salt executes state.apply, it reads these files and ensures the system matches the definitions.
 All .sls files were placed under:
-
 /srv/salt/
 
 because this is the directory referenced in file_roots (defined in the master file).
-
-SaltStack expects all managed states under /srv/salt/ by default, and the top.sls file defines the mapping between systems and their configuration modules.
 This hierarchy was chosen because it mirrors professional infrastructure-as-code layout:
 
 /srv/salt/
@@ -210,8 +194,7 @@ This hierarchy was chosen because it mirrors professional infrastructure-as-code
  ├── system/
  └── files/
 
-
-Each folder represents a logical component of the environment — application layer, database layer, and base system configuration
+Each folder represents a logical component of the environment - application layer, database layer, and base system configuration
 
 #### top.sls
 Located on:
@@ -232,7 +215,6 @@ base:
 The environment base means default.
 App and DB are the hostnames, this was there were also matching the roster entries.
 For each machine it was defined which .sls files apply to it.
-
 The APP will run applications setup, while the DB will run database setups.
 
 #### app/spring_app.sls
@@ -243,7 +225,7 @@ install_java:
   pkg.installed:
     - name: openjdk-21-jdk
 
-This will ensure that java is installed
+This will ensure that java is installed.
 
 ensure_opt_dir:
   file.directory:
@@ -252,7 +234,16 @@ ensure_opt_dir:
     - group: vagrant
     - mode: 755
 
-This commands will create the directory for the application
+This commands will ensure the directory for the application exists.
+
+The 'ensure_opt_dir' was later changed to:
+file.directory:
+  - name: /opt/spring-app
+  - user: devuser
+  - group: developers
+  - mode: 750
+
+This way it makes them readable and writable only by members of the developers group.
 
 clone_project:
   git.latest:
@@ -272,6 +263,20 @@ build_project:
 
 The application will be compiled with Gradle.
 
+create_dev_group:
+  group.present:
+    - name: developers
+
+Creates the developers group.
+
+create_dev_user:
+  user.present:
+    - name: devuser
+    - groups:
+      - developers
+
+Creates the devuser and adds it to the developers group.
+
 run_app:
   cmd.run:
     - name: nohup java -jar /opt/spring-app/complete/build/libs/rest-service-0.0.1-SNAPSHOT.jar &
@@ -281,6 +286,8 @@ run_app:
 To end this file, it will run the app in the background, nohup was used so it stays running even after Salt exits.
 The unless condition prevents duplicate launches.
 
+This file installs Java, deploys the app, builds it, creates the required user/group, and starts the service.
+
 #### db/h2db.sls
 
 This file defines setup for the H2 database server.
@@ -289,7 +296,7 @@ install_java:
   pkg.installed:
     - name: openjdk-21-jdk
 
-installs Java (required by H2)
+Installs Java
 
 download_h2:
   cmd.run:
@@ -298,8 +305,25 @@ download_h2:
         wget -q https://h2database.com/h2-2022-11-13.zip -O /opt/h2/h2.zip &&
         apt-get install -y unzip &&
         unzip -o /opt/h2/h2.zip -d /opt/h2/
+    - cwd: /opt/h2
+    - require:
+      - pkg: install_java
 
-downloads and extracts H2 manually because it’s not available via apt.
+Downloads and extracts H2 manually because it’s not available via apt.
+
+create_dev_group:
+  group.present:
+    - name: developers
+
+Creates the developers group.
+
+create_dev_user:
+  user.present:
+    - name: devuser
+    - groups:
+      - developers
+
+Creates the devuser and adds it to the developers group.
 
 start_h2:
   cmd.run:
@@ -307,9 +331,16 @@ start_h2:
     - cwd: /opt/h2
     - unless: pgrep -f org.h2.tools.Server
 
-starts the H2 TCP server in the background on port 9092.
+Starts the H2 TCP server in the background on port 9092.
+The 'unless' commands is used to avoid multiple instances started.
+
+This file installs Java, downloads and extracts the H2 database, creates the same user and group, and launches H2 in background mode.
+Both machines share identical user/group setup to ensure consistent permissions and access for potential shared files or development operations.
 
 #### system/pam.sls
+
+This file enforces password security policy, ensuring pwquality.conf matches a version stored under /srv/salt/files that way we simulate a system hardening policy.
+
 /etc/security/pwquality.conf:
   file.managed:
     - source: salt://files/pwquality.conf
@@ -317,10 +348,14 @@ starts the H2 TCP server in the background on port 9092.
     - group: root
     - mode: 644
 
-This file enforces password security policy, ensuring pwquality.conf matches a version stored under /srv/salt/files.
-This was included to simulate a system hardening policy as required in CA4.
+This commands tell Salt to copy the file from the source to the /etc/security directory , it also sets the owner as root and the necessary file permissions on both VMs since
+it was added on both nodes on file top.sls.
+This way when salt-ssh -c /home/vagrant/salt_config/etc '*' state.apply is runned, the PAM file will be automaticaly created.
 
 #### system/health.sls
+
+This file executes health checks to confirm both services are running correctly.
+
 check_app:
   cmd.run:
     - name: curl -f http://localhost:8080/actuator/health || echo "App not running"
@@ -329,25 +364,37 @@ check_db_port:
   cmd.run:
     - name: ss -tulpn | grep 9092 || echo "DB not listening"
 
-This file executes health checks to confirm both services are running correctly.
-
 The first uses Spring’s /actuator/health endpoint.
 
 The second checks if H2 is listening on TCP port 9092.
 
+#### Testing Salt-SSH connectivity
+
+To test the Salt-SSH we used:
+
+salt-ssh -c /home/vagrant/salt_config/etc '*' test.ping
+
+After fixing SSH permissions and ownership, it returned:
+
+app:
+    True
+db:
+    True
+
 ### Applying the Configuration
-After multiple fixes (SSH, cache, lock files, port conflicts), running:
+After multiple fixes we can run:
 salt-ssh -c /home/vagrant/salt_config/etc '*' state.apply
 
-produced a full deployment.
+This command will run the master configuration file which will then run the files under /srv/salt.
+All those files togheter are ablet to produce a full deployment.
 
-#### Common Errors and Fixes
-Error	Cause	Solution
-Permission denied /var/cache/salt	Salt tried to write to system cache	Added custom cachedir in /home/vagrant/salt_config
-E: Could not open lock file /var/lib/apt/lists/lock	Running apt without sudo	Added sudo: True in roster entries
-Could not find or load main class org.h2.tools.Server	H2 zip extraction incomplete	Added explicit unzip command
-Port 8080 already in use	Spring Boot already running	Stopped existing process (sudo kill -9 $(sudo lsof -t -i :8080))
-Permission denied (publickey)	Missing SSH key between app and db	Copied id_rsa.pub from app to db manually
+#### Errors and Fixes
+
+Permission denied /var/cache/salt	Salt tried to write to system cache	
+Added custom cachedir in /home/vagrant/salt_config
+
+Could not find or load main class org.h2.tools.Server	H2 zip extraction incomplete	
+Added explicit unzip command
 
 ### Verifying Deployment
 #### Checking running services
@@ -366,30 +413,27 @@ This confirms that the Spring Boot server is running successfully.
 ### Conclusions
 
 The implementation proved SaltStack can fully replace Ansible for configuration management within the Vagrant environment.
-
 Salt-SSH required extra configuration (cache path, SSH trust, roster permissions) but ultimately achieved full automation.
-
 The workflow is now entirely agentless, this means Salt remotely configures both VMs using SSH keys.
-
 The final state deployment confirms successful orchestration of both the database and the application layer.
+With the use of
+salt-ssh -c /home/vagrant/salt_config/etc '*' state.apply full_setup
+we can make our setup reproducible and automatic using a YAML setup which was structured under /srv/salt directory.
 
 ## Advantages of SaltStack in this Context
 
 Faster parallel provisioning of both VMs through ZeroMQ.
-
 Continuous state enforcement (automatic remediation).
-
 Clean separation of declarative state files (.sls).
-
 Same Vagrant environment reused with minimal changes.
 
 ## Limitations
 
 Slightly higher initial setup (roster or minion keys).
-
 Requires understanding of YAML and Jinja templating.
 
-## Conclusion
-
-SaltStack provides a fully equivalent alternative to Ansible for CA4 Week 1, achieving the same deployment and configuration goals while offering faster, event-driven execution and long-term state management.
-Using the existing Vagrant VMs from CA3, all configuration steps—application deployment, H2 database setup, password policy, user management, and health verification—are automated declaratively through SaltStack.
+## Final Conclusion
+SaltStack provides a fully equivalent alternative to Ansible for CA4 Week 1, achieving the same deployment and configuration goals while offering faster,
+event-driven execution and long-term state management.
+Using the existing Vagrant VMs from CA3, all configuration steps—application deployment, H2 database setup, password policy, user management, 
+and health verification—are automated declaratively through SaltStack.
