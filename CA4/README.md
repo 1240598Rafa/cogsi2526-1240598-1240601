@@ -603,6 +603,20 @@ This file enforces password security policy, ensuring pwquality.conf matches a v
     - group: root
     - mode: 644
 
+--- Enforce lockout after 5 failed attempts for 10 minutes
+/etc/pam.d/common-auth:
+  file.replace:
+    - pattern: '^auth.*pam_tally2.so.*'
+    - repl: 'auth required pam_tally2.so deny=5 unlock_time=600 onerr=fail audit'
+    - append_if_not_found: True
+
+For this to be according to what was asked we have to make sure the pwquality.conf has the following specifications:
+minlen = 12
+minclass = 3
+dictcheck = 1 ---Reject dictionary words
+usercheck = 1 ---Disallow use of username in password
+remember = 5 ---Prevent reuse of last 5 passwords
+
 This commands tell Salt to copy the file from the source to the /etc/security directory , it also sets the owner as root and the necessary file permissions on both VMs since
 it was added on both nodes on file top.sls.
 This way when salt-ssh -c /home/vagrant/salt_config/etc '*' state.apply is runned, the PAM file will be automaticaly created.

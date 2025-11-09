@@ -126,6 +126,22 @@ After opening the url the exepected JSON response was:
   {"id":2,"firstName":"Frodo","lastName":"Baggins","role":"thief"}
 ]
 
+To test the Chat Application we go to CA2/Part1:
+
+./gradlew runServer
+
+And to verify if it is working we can do 2 ways:
+sudo ss -tulpn | grep 59001
+or
+We start a connection on the host:
+.\gradlew.bat runClient
+
+And by connecting to localhost:59001 the connection should be redirected to the VM and give the following output:
+
+Connected to chat server on port 59001
+
+Unfortunately this was tested several times but maybe for lack of resources (even though they were upgraded on Vagrantfile) we couldn't get the results we wanted. 
+
 ## Step 5 - Ensuring Port Forwarding and Connectivity
 
 It was verified that port 8080 was open:
