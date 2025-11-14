@@ -11,8 +11,8 @@ group = 'com.example'
 version = '1.0.0'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 application {
@@ -41,6 +41,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     integrationTestImplementation 'org.springframework.boot:spring-boot-starter-test'
     integrationTestRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'org.apache.ant:ant:1.10.13'
 }
 
 tasks.named('test') {
