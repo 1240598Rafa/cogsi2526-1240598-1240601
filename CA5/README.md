@@ -171,7 +171,7 @@ No source code or build tooling exists in the final container
 
 The following commands were used:
 
-Chat
+### Chat
 docker history chatapp:v1:
 
 IMAGE          CREATED        CREATED BY                                      SIZE      COMMENT
@@ -197,6 +197,10 @@ fe08739a7805   14 hours ago   CMD ["java" "-cp" "build/libs/basic_demo-0.1…   
 <missing>      6 weeks ago    /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B
 <missing>      6 weeks ago    /bin/sh -c #(nop)  ARG RELEASE                  0B
 
+The layer created by RUN /bin/sh -c ./gradlew clean build -x test… includes the Gradle cache, compiled classes, temporary build directories and downloaded dependencies
+The COPY . /app # buildkit  should be the full project source code
+This version is the largest and least effecient build, because everything that is needed to compile the project is inside the final image.
+
 docker history chatapp:v2:
 
 IMAGE          CREATED       CREATED BY                                      SIZE      COMMENT
@@ -221,6 +225,11 @@ IMAGE          CREATED       CREATED BY                                      SIZ
 <missing>      6 weeks ago   /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B
 <missing>      6 weeks ago   /bin/sh -c #(nop)  ARG RELEASE                  0B
 
+The only application specific layer is COPY basic_demo-0.1.0.jar app.jar # buildkit 
+No Gradle layer is present and the rest of the layers come from the base OpenJDK 21 image
+This means that the version 2 is much smaller compared to the version 1, because only the JAR is added to the image, so no build tools, no source code
+and no Gradle cache are included.
+
 docker history chatapp:multi:
 IMAGE          CREATED        CREATED BY                                      SIZE      COMMENT
 2e2db3636902   14 hours ago   CMD ["java" "-cp" "app.jar" "basic_demo.Chat…   0B        buildkit.dockerfile.v0
@@ -243,7 +252,14 @@ IMAGE          CREATED        CREATED BY                                      SI
 <missing>      4 weeks ago    /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B
 <missing>      4 weeks ago    /bin/sh -c #(nop)  ARG RELEASE                  0B
 
-Spring
+The runtime layer includes COPY /build/build/libs/basic_demo-0.1.0.jar … 
+The Gradle build layers that are the heaviest, aren't on the final image.
+The OpenJRE base image is smaller than the Open JDK.
+
+This means that the multi-stage produces the smalles and cleanest image, doesn't need dependencies, no source file and has a smaller runtime compared to JDK.
+
+
+### Spring
 docker history springapp:v1:
 
 IMAGE          CREATED       CREATED BY                                      SIZE      COMMENT
@@ -267,6 +283,10 @@ cba67610e2b7   4 days ago    CMD ["java" "-jar" "app.jar"]                   0B 
 <missing>      6 weeks ago   /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B
 <missing>      6 weeks ago   /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B
 <missing>      6 weeks ago   /bin/sh -c #(nop)  ARG RELEASE                  0B
+
+The COPY /app/complete/build/libs/rest-service-0… represents tje compiled Spring Boot JAR
+This version is the heaviest because it contains everything needed to build the Spring Boot app, the Gradle dependencies bring huge overhead and it also keeps
+both the soruce codes and build tools.
 
 docker history springapp:v2:
 
@@ -292,6 +312,10 @@ e433fc3c3d32   4 days ago    CMD ["java" "-jar" "app.jar"]                   0B 
 <missing>      6 weeks ago   /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B        
 <missing>      6 weeks ago   /bin/sh -c #(nop)  ARG RELEASE                  0B
 
+Just like for the Chat app, the COPY Cogsi-1.0.0.jar /app/app.jar # buildkit is the only application-specific layer.
+Version 2 is significantly smaller than the first version, because only thr final JAR is added.
+
+
 docker history springapp:multi:
 
 IMAGE          CREATED        CREATED BY                                      SIZE      COMMENT
@@ -315,61 +339,79 @@ d19bced32677   14 hours ago   ENTRYPOINT ["java" "-jar" "app.jar"]            0B
 <missing>      4 weeks ago    /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B
 <missing>      4 weeks ago    /bin/sh -c #(nop)  ARG RELEASE                  0B
 
-Observations (to include here after running the commands)
+Multi-stage produces one again the smallest and most efficient final image, this is an ideal pattern for production Spring Boot deployments. 
 
-Version 1 images are the heaviest (contain JDK, Gradle, source files).
+### Final observations:
 
-Version 2 images are lighter (only runtime + JAR).
+The docker history analysis clearly shows the impact of different build strategies on image size and composition.
 
-Multi-stage images are typically the smallest because only the JRE and final JAR remain.
+Version 1 images are the heaviest because they include the full JDK, the Gradle wrapper, the cache of the build, all downloaded dependencies and the full
+application source code. This makes them suitable for production environments.
+
+Version 2 images are lighter since they only contain the final JAR produced on the host, and the runtime environment.
+However the underlying base image (JDK) is still relatively heavy.
+
+Multi-stage images are typically the smallest and cleanest because the build tools only exist on the first stage, and the final image contains only a lightweight JRE,
+a compiled application JAR and a minimal runtime configuration.
+This approach reduces significantly the final image size, improves security, minimizes attack surface and follows industry best practices for deploying Java apps in containers.
 
 ## Resource Usage Analysis (docker stats)
 
-Commands used:
+To evaluate runtime performance, docker stats was executed on the Version 2 images of both applications. Version 2 was selected because it contains only the JAR file and 
+the minimal runtime environment, without additional build tools or Gradle caches, providing the cleanest and most representative runtime metrics.
 
 Chat
 docker run --name chatstats -p 59001:59001 chatapp:v2
 docker stats chatstats
 
+CONTAINER ID   NAME        CPU %     MEM USAGE / LIMIT     MEM %     NET I/O      BLOCK I/O   PIDS
+46f0a2d8755e   chatstats   0.05%     69.58MiB / 15.57GiB   0.44%     1.5kB / 0B   0B / 0B     19  
+
+This means that while the application is running, the CPU usage is extremely low as the server is waiting for client connections, the memory usage is average,
+the PIDS means that JVM spawned a few internal threads, the network I/O was low since there were no messages being exchanged.
+
 Spring
 docker run --name springstats -p 8080:8080 springapp:v2
 docker stats springstats
 
-Findings (to be filled in after measurement)
+CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT     MEM %     NET I/O       BLOCK I/O   PIDS
+37d895055116   springstats   0.11%     329.1MiB / 15.57GiB   2.06%     1.05kB / 0B   0B / 0B     46  
 
-CPU usage near 0% while idle
+While the Spring app was running a heavier memory usage was registered, the CPU usage remained low since it was idle and the 46 PDSS reflect the many Spring threads such
+as request workers, async handlers, background schedulers and JVM internals.
 
-Memory usage between ~40–150 MB depending on JVM
-
-Network usage increases only during requests/messages
-
-Disk I/O minimal in both apps
+Both applications demonstrate low CPU usage during idle operation. The memory footprint differs significantly between the Chat (lightweight Java server) and the Spring Boot REST 
+service (full-stack framework). These results confirm correct container operation and provide insight into expected runtime resource requirements.
 
 Remove the containers:
 
 docker rm -f chatstats springstats
 
 ## Publishing Images to Docker Hub
-Chat
-docker tag chatapp:v1 <user>/chatapp:v1
-docker tag chatapp:v2 <user>/chatapp:v2
-docker tag chatapp:multi <user>/chatapp:multi
 
-docker push <user>/chatapp:v1
-docker push <user>/chatapp:v2
-docker push <user>/chatapp:multi
+docker login
+
+Chat
+docker tag chatapp:v1 1240598/chatapp:v1
+docker tag chatapp:v2 1240598/chatapp:v2
+docker tag chatapp:multi 1240598/chatapp:multi
+
+docker push 1240598/chatapp:v1
+docker push 1240598/chatapp:v2
+docker push 1240598/chatapp:multi
 
 Spring
-docker tag springapp:v1 <user>/springapp:v1
-docker tag springapp:v2 <user>/springapp:v2
-docker tag springapp:multi <user>/springapp:multi
+docker tag springapp:v1 1240598/springapp:v1
+docker tag springapp:v2 1240598/springapp:v2
+docker tag springapp:multi 1240598/springapp:multi
 
-docker push <user>/springapp:v1
-docker push <user>/springapp:v2
-docker push <user>/springapp:multi
+docker push 1240598/springapp:v1
+docker push 1240598/springapp:v2
+docker push 1240598/springapp:multi
 
+Here the user was 1240598.
 
-Links to the Docker Hub repositories should be inserted here.
+By accessing to https://hub.docker.com/u/1240598 we can clearly see the 2 reps and each of them has 3 tags that are the v1,v2 and multi.
 
 ## Errors Encountered and Solutions
 Error 1: ./gradlew: not found
