@@ -1,0 +1,110 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
+plugins {
+    id 'org.springframework.boot' version '3.3.4'
+    id 'io.spring.dependency-management' version '1.1.5'
+    id 'java'
+    id 'application'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+application {
+    mainClass = 'payroll.PayrollApplication'
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    integrationTest {
+        java.srcDir file('src/integrationTest/java')
+        resources.srcDir file('src/integrationTest/resources')
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-hateoas'
+    runtimeOnly 'com.h2database:h2'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    integrationTestImplementation 'org.springframework.boot:spring-boot-starter-test'
+    integrationTestRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'org.apache.ant:ant:1.10.13'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+task runDist(type: JavaExec) {
+    dependsOn installDist
+    group = "application"
+    description = "Run the app from the generated distribution"
+    mainClass = 'payroll.PayrollApplication'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task zipJavadoc(type: Zip) {
+    dependsOn javadoc
+    group = "documentation"
+    description = "Generate and zip the project Javadoc"
+    from javadoc.destinationDir
+    archiveFileName = "javadoc-${version}.zip"
+    destinationDirectory = file("$buildDir/docs")
+}
+
+task deployToDev {
+    group = "deployment"
+    description = "Deploy to dev environment"
+
+    def deployDir = file("build/deployment/dev")
+
+    tasks.register("cleanDev", Delete) {
+        delete deployDir
+    }
+
+    tasks.register("copyJar", Copy) {
+        dependsOn bootJar
+        from(tasks.named("bootJar").get().archiveFile)
+        into deployDir
+    }
+
+    tasks.register("copyLibs", Copy) {
+        dependsOn "copyJar"
+        from configurations.runtimeClasspath
+        into "${deployDir}/lib"
+    }
+
+    tasks.register("copyConfig", Copy) {
+        dependsOn "copyLibs"
+        from("src/main/resources") {
+            include "*.properties"
+            filter(ReplaceTokens, tokens: [version: project.version])
+        }
+        into("${deployDir}/config")
+    }
+
+    dependsOn "cleanDev", "copyJar", "copyLibs", "copyConfig"
+}
+
+task integrationTest(type: Test) {
+    description = 'Run integration tests'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    shouldRunAfter test
+    useJUnitPlatform()
+    failOnNoDiscoveredTests = false
+}
