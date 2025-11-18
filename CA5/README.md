@@ -44,11 +44,13 @@ Full source code of CA2 Part1 and CA2 Part2
 ## Chat Application
 ### Version 1 - Build inside the container
 
-This version satisfies the requirement:
-
+First it was required to:
 “Version 1: Build the server inside the Dockerfile.”
 
+The Dockerfile complies the application inside the image, meaning the final container includes all build dependencies, tools and cache.
+
 Dockerfile.v1
+
 FROM eclipse-temurin:21-jdk
 WORKDIR /app
 COPY . /app
@@ -58,13 +60,13 @@ CMD ["java", "-cp", "build/libs/basic_demo-0.1.0.jar", "basic_demo.ChatServerApp
 
 Explanation:
 
+FROM - selects a JDK base image, it is required so the application can be compiled inside the container.
+WORKDIR - sets the working directory of the container, all following commands will be runed inside /app.
+COPY - copies the entire project.
+RUN - executes Gradle build inside the container.
+EXPOSE - documents that the application expects to listen on port 59001.
+CMD - defines the default command to run when the containers start, it runs the Chat using the JAR.
 Copies the full source code into the container
-
-Compiles the project inside the container
-
-Produces the JAR under build/libs/
-
-Runs the server using Java 21
 
 To build:
 docker build -f Dockerfile.v1 -t chatapp:v1 .
@@ -74,18 +76,26 @@ docker run --rm -p 59001:59001 chatapp:v1
 
 ### Version 2 — Host-built JAR
 
-This version satisfies the second requirement:
+This version satisfies:
 
 “Version 2: Build the server on the host and copy the resulting JAR into the image.”
 
-Dockerfile.v2
+So the application is built locally before building the image.
+
+Dockerfile
 FROM eclipse-temurin:21-jdk
 WORKDIR /app
 COPY basic_demo-0.1.0.jar app.jar
 EXPOSE 59001
 CMD ["java", "-cp", "app.jar", "basic_demo.ChatServerApp", "59001"]
 
-Explanation
+Explanation for the Dockerfilev2:
+
+FROM - uses a JDK base image
+WORKDIR - sets /app as the working directory
+COPY - only the final JAR is copied into the image
+EXPOSE - port to be used
+CMD - starts the app by running the JAR
 
 The JAR is compiled locally using:
 ./gradlew clean build -x test
@@ -162,13 +172,12 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 Explanation
 
 Same multi-stage approach used for Chat
-
 Produces the smallest and cleanest final image
-
 No source code or build tooling exists in the final container
 
 ## Image Layer Analysis (docker history)
 
+It was then asked to explain how version 1 differ from version 2 and multi-stage in termos of image layers and size.
 The following commands were used:
 
 ### Chat
@@ -448,22 +457,112 @@ git tag ca5-part1
 git push origin ca5-part1
 git push --tags
 
-## Final Remarks
+# Alteranatives to Docker
 
-Part 1 meets all requirements:
+While Docker is one of the most widely used container platforms, there are several mature alternatives that provide different trade-offs in terms of 
+performance, security, ecosystem support and integration with cloud environments.
 
-Two versions per application (V1: build inside container; V2: host-built JAR)
+## containerd
 
-Multi-stage builds for both applications
+containerd is an industry-standard container runtime originally developed by Docker and now maintained under the Cloud Native Computing Foundation (CNCF).
+It provides the core low-level functionality for running containers and is used internally by many platforms, including Kubernetes.
 
-Full testing of all images
+Use Cases:
+Kubernetes container runtime
+High-performance, low-level orchestration
+Server environments where Docker is unnecessary overhead
 
-Layer analysis using docker history
+Strengths:
+Lightweight and minimal
+CNCF-maintained
+Production-grade and cloud-provider approved
+Less overhead than Docker
 
-Resource analysis using docker stats
+Limitations:
+No built-in image build tools
+CLI is less user-friendly than Docker
 
-All images published on Docker Hub
+## CRI-O
 
-Complete documentation of errors and solutions
+CRI-O is a Kubernetes-native container runtime created specifically to implement the Kubernetes Container Runtime Interface (CRI).
+It is optimized for running containers in Kubernetes clusters with minimal components.
 
-Organized tutorial-style explanation
+Use Cases:
+Kubernetes environments
+Enterprises requiring minimal attack surface
+Systems focused on compliance and stability
+
+Strengths:
+Lightweight and secure
+Designed specifically for Kubernetes
+No daemon, minimal footprint
+Backed by Red Hat
+
+Limitations:
+
+Not designed for standalone use
+Requires Kubernetes to be meaningful
+
+## LXC / LXD (Linux Containers)
+
+LXC (lower level) and LXD (higher level management tool) provide system-level containers that behave more like lightweight virtual machines than traditional Docker containers.
+
+Use Cases:
+Running full Linux OS environments
+Long-running services that require systemd
+Infrastructure virtualization where Docker is too restrictive
+
+Strengths:
+
+Very lightweight compared to full virtual machines
+Supports systemd and full init systems
+Strong isolation
+
+Limitations:
+
+Less application-focused than Docker
+Requires deeper understanding of Linux internals
+
+
+## Comparison of Alternatives
+| Feature / Runtime     | Docker            | containerd           | CRI-O               | LXC / LXD                    |
+|-----------------------|-------------------|----------------------|---------------------|------------------------------|
+| Target use            | General purpose   | Low-level runtime    | Kubernetes-native   | System-level containers      |
+| Easy CLI              | Yes               | Minimal              | Minimal             | Yes (LXD)                    |
+| Build Tools           | Yes               | No                   | No                  | No                           |
+| Security footprint    | Medium            | Low                  | Very Low            | Medium                       |
+| Supports systemd      | No                | No                   | No                  | Yes                          |
+| Best for production   | Broad use cases   | Kubernetes, cloud    | Kubernetes only     | Lightweight VM-like workloads|
+| Learning curve        | Low               | Medium               | Medium              | Higher                       |
+
+Overall, the table shows that the choice of runtime depends heavily on the deployment context: Docker for general usage 
+and developer experience, containerd for cloud-native production systems, CRI-O for Kubernetes-exclusive environments, and LXC/LXD for system-level virtualization.
+
+## Why containerd is the best general-purpose choice:
+
+It is the core runtime used by Docker itself, Kubernetes, AWS, Google Cloud, Azure, GitHub Actions, etc.
+
+CNCF-maintained and neutral (open ecosystem)
+
+Lower overhead and attack surface compared to Docker
+
+Supported by all major cloud providers
+
+Does not include unnecessary extras (builder, desktop GUI, daemon features)
+
+## When containerd makes the most sense:
+
+You want Docker-compatible performance without Docker’s overhead
+
+You care about stability, security, and production readiness
+
+You deploy to Kubernetes
+
+You are running server environments
+
+## Final Recommendation
+
+containerd is the best overall alternative to Docker
+because it is lightweight, cloud-native, production-grade, and widely used as the underlying runtime for Kubernetes and modern orchestration platforms.
+
+For Kubernetes-exclusive environments, CRI-O may be even more appropriate, while LXC/LXD are suited for full system-level virtualization rather than application-level containers
