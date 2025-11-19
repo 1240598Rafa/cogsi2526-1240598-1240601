@@ -17,13 +17,11 @@ CA5/
       │    ├── Dockerfile.v1
       │    ├── Dockerfile.multi
       │    ├── gradlew, gradle/, src/, build.gradle, settings.gradle
-      │    └── (full Chat app source from CA2 Part1)
       └── Spring/
            ├── Dockerfile.v1
            ├── Dockerfile.v2
            ├── Dockerfile.multi
            ├── gradlew, gradle/, src/, build.gradle, settings.gradle
-           └── (full Spring app source from CA2 Part2)
 
 
 The multi-stage and Version 1 builds require the full project source code.
