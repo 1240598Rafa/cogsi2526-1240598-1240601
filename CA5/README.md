@@ -87,8 +87,6 @@ COPY basic_demo-0.1.0.jar app.jar
 EXPOSE 59001
 CMD ["java", "-cp", "app.jar", "basic_demo.ChatServerApp", "59001"]
 
-Explanation for the Dockerfilev2:
-
 FROM - uses a JDK base image
 WORKDIR - sets /app as the working directory
 COPY - only the final JAR is copied into the image
@@ -104,6 +102,9 @@ This produces a smaller image compared to Version 1
 
 To build:
 docker build -f Dockerfile.v2 -t chatapp:v2 .
+
+To test:
+docker run --rm -p 59001:59001 chatapp:v2
 
 ### Multi-Stage Build (Version 3)
 
@@ -123,28 +124,66 @@ COPY --from=builder /build/build/libs/basic_demo-0.1.0.jar app.jar
 EXPOSE 59001
 CMD ["java", "-cp", "app.jar", "basic_demo.ChatServerApp", "59001"]
 
-Why this version is better
+Stage 1:
 
+FROM - uses JDK
+WORKDIR - sets /build as working directory
+COPY - copies all source files into the builder container
+RUN - Executes the full Gradle build
+
+Stage 2:
+
+FROM - uses a lighweight JRE which doesn't include compilers and tools so it improves the image size and the startup time
+WORKDIR - is set to /app
+COPY - copies only the compiled JAR from the build stage into the runtime stage
+EXPOSE - exposes port 59001
+CMD - lauches the chat server inside the container
+
+Why this version is better:
 The build stage includes JDK + Gradle
-
 The runtime stage uses only the small JRE
-
 The final image is significantly lighter and safer
 
 This is the recommended production practice
 
+To build:
+docker build -f Dockerfile.multi -t chatapp:v3 .
+
+To test:
+docker run --rm -p 59001:59001 chatapp:v3
+
 ## Spring Application
 ### Version 1 - Build inside the container
 Dockerfile
-FROM eclipse-temurin:21-jdk
+FROM eclipse-temurin:21-jdk AS build
+RUN apt-get update && apt-get install -y git
 WORKDIR /app
-COPY . /app
-RUN ./gradlew clean build -x test
+RUN git clone https://github.com/spring-guides/gs-rest-service.git .
+WORKDIR /app/complete
+RUN ./gradlew build
+
+FROM eclipse-temurin:21-jdk 
+COPY --from=build /app/complete/build/libs/rest-service-0.0.1-SNAPSHOT.jar /app/app.jar
+WORKDIR /app
 EXPOSE 8080
-CMD ["java", "-jar", "build/libs/app.jar"]
+CMD ["java", "-jar", "app.jar"]
 
+FROM - uses a JDK base image that is required since the app will the compiled inside the container.
+WORKDIR - sets the /app as the working directory.
+COPY - copies the entire working directory, allowing commands to be run inside this directory.
+RUN - executes the gradle build process inside the image.
+EXPOSE - the container will listen on port 8080.
+CMD - Starts the Spring Boot app when the container runs.
 
-(The JAR name may vary; wildcard can be used.)
+The Spring Boot Version 1 Dockerfile is more complex than the Chat server Version 1 because the Spring Boot project originates from a GitHub template that already uses a two-stage structure, requires Git installation, and contains a multi-folder layout (“complete” folder). The Chat server project, in contrast, exists entirely in the local repository, has a simpler structure, and does not require external dependencies or cloning.
+
+Both Version 1 implementations fulfil the same requirement (“build inside the container”), but their Dockerfiles differ because the applications themselves differ in structure, origin, tooling and complexity.
+
+To build:
+docker build -f Dockerfile -t springapp:v1 .
+
+To test:
+docker run --rm -p 8080:8080 springapp:v1
 
 ### Version 2 — Host-built JAR
 Dockerfile.v2
@@ -153,6 +192,19 @@ WORKDIR /app
 COPY build/libs/*.jar app.jar
 EXPOSE 8080
 CMD ["java", "-jar", "app.jar"]
+
+FROM - uses a JDK base image.
+WORKDIR - sets the /app as the working directory.
+COPY - only the final Spring Boot JAR is copied.
+RUN - executes the gradle build process inside the image.
+EXPOSE - the container will listen on port 8080.
+CMD - Starts the Spring Boot app.
+
+To build:
+docker build -f Dockerfile.v2 -t springapp:v2 .
+
+To test:
+docker run --rm -p 8080:8080 springapp:v2
 
 ### Multi-Stage Build
 Dockerfile.multi
@@ -167,11 +219,33 @@ COPY --from=builder /build/build/libs/*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
 
+Stage 1:
+
+FROM - uses JDK as base image
+WORKDIR - sets /build as working directory
+COPY - copies the entire Spring project into the container
+RUN - executes the spring boot build inside the container which will then store a JAR
+
+Stage 2:
+
+FROM - uses a JRE which has no compilers or dev tools
+WORKDIR - sets /app as the working directory
+COPY - copies only the HAR from the build stage
+EXPOSE - uses por 8080
+ENTRYPOINT - entrypoint was used instead of CMD so the container behaves like a dedicvated app server.
+
+
 Explanation
 
 Same multi-stage approach used for Chat
 Produces the smallest and cleanest final image
 No source code or build tooling exists in the final container
+
+To build:
+docker build -f Dockerfile.multi -t springapp:v3 .
+
+To test:
+docker run --rm -p 8080:8080 springapp:v3
 
 ## Image Layer Analysis (docker history)
 
@@ -441,7 +515,7 @@ open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specifie
 
 
 Cause: Docker Desktop was closed.
-Fix: Open Docker Desktop → wait for "Docker is running".
+Fix: Open Docker Desktop - wait for "Docker is running".
 
 Error 3: Building from the wrong directory
 
@@ -454,6 +528,9 @@ git commit -m "CA5 Part 1 completed"
 git tag ca5-part1
 git push origin ca5-part1
 git push --tags
+
+
+
 
 # Alteranatives to Docker
 
