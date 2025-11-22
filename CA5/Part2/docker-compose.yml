@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  db:
+    image: eclipse-temurin:21-jdk
+    container_name: h2-db
+    working_dir: /opt/h2
+    command: >
+      sh -c "
+        apt-get update -y &&
+        apt-get install -y wget netcat-openbsd &&
+        wget -q https://repo1.maven.org/maven2/com/h2database/h2/2.2.224/h2-2.2.224.jar -O h2.jar &&
+        java -cp h2.jar org.h2.tools.Server -tcp -tcpAllowOthers -tcpPort 9092 -ifNotExists
+      "
+    ports:
+      - "9092:9092"
+    volumes:
+      - h2_data:/opt/h2
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - backend
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spring-web
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:h2:tcp://db:9092/~/testdb
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8080
+    networks:
+      - backend
+
+volumes:
+  h2_data:
+
+networks:
+  backend:
+    driver: bridge
