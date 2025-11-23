@@ -731,112 +731,166 @@ git push origin ca5-part2
 ```
 
 
-# Alteranatives to Docker
+# 2. Alternative Solution (Non-Docker Approach)
 
-While Docker is one of the most widely used container platforms, there are several mature alternatives that provide different trade-offs in terms of 
-performance, security, ecosystem support and integration with cloud environments.
+This alternative leverages:
 
-## containerd
+- **containerd** (CNCF runtime used by Docker & Kubernetes)  
+- **nerdctl** (Docker-compatible CLI)  
+- **buildkit** (OCI image builder)  
+- **CNI plugins** (networking)  
 
-containerd is an industry-standard container runtime originally developed by Docker and now maintained under the Cloud Native Computing Foundation (CNCF).
-It provides the core low-level functionality for running containers and is used internally by many platforms, including Kubernetes.
+Together, these components reproduce nearly all Docker/Compose functionality.
 
-Use Cases:
-Kubernetes container runtime
-High-performance, low-level orchestration
-Server environments where Docker is unnecessary overhead
+---
 
-Strengths:
-Lightweight and minimal
-CNCF-maintained
-Production-grade and cloud-provider approved
-Less overhead than Docker
+## 2.1 Why containerd?
 
-Limitations:
-No built-in image build tools
-CLI is less user-friendly than Docker
+containerd is the official container runtime used by major cloud platforms:
 
-## CRI-O
+- Docker  
+- Kubernetes  
+- AWS, Azure, Google Cloud  
+- GitHub Actions  
 
-CRI-O is a Kubernetes-native container runtime created specifically to implement the Kubernetes Container Runtime Interface (CRI).
-It is optimized for running containers in Kubernetes clusters with minimal components.
+### Strengths
+- Lightweight  
+- Production-grade  
+- CNCF-maintained  
+- Lower overhead than Docker  
+- Strong security guarantees  
 
-Use Cases:
-Kubernetes environments
-Enterprises requiring minimal attack surface
-Systems focused on compliance and stability
+### Limitations
+- No native Dockerfile support  
+- Requires additional tooling (buildkit and nerdctl)  
 
-Strengths:
-Lightweight and secure
-Designed specifically for Kubernetes
-No daemon, minimal footprint
-Backed by Red Hat
+---
 
-Limitations:
+## 2.2 Install containerd
 
-Not designed for standalone use
-Requires Kubernetes to be meaningful
+```bash
+sudo apt update
+sudo apt install -y containerd
+sudo mkdir -p /etc/containerd
+sudo containerd config default | sudo tee /etc/containerd/config.toml
+sudo systemctl restart containerd
+```
 
-## LXC / LXD (Linux Containers)
+---
 
-LXC (lower level) and LXD (higher level management tool) provide system-level containers that behave more like lightweight virtual machines than traditional Docker containers.
+## 2.3 Install CNI Plugins
 
-Use Cases:
-Running full Linux OS environments
-Long-running services that require systemd
-Infrastructure virtualization where Docker is too restrictive
+```bash
+sudo mkdir -p /opt/cni/bin
+curl -L -o cni.tgz https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz
+sudo tar -C /opt/cni/bin -xzf cni.tgz
+```
 
-Strengths:
+---
 
-Very lightweight compared to full virtual machines
-Supports systemd and full init systems
-Strong isolation
+## 2.4 Install buildkit
 
-Limitations:
+```bash
+sudo apt install -y buildkit
+sudo systemctl enable --now buildkit
+```
 
-Less application-focused than Docker
-Requires deeper understanding of Linux internals
+---
 
+## 2.5 Install nerdctl
 
-## Comparison of Alternatives
-| Feature / Runtime     | Docker            | containerd           | CRI-O               | LXC / LXD                    |
-|-----------------------|-------------------|----------------------|---------------------|------------------------------|
-| Target use            | General purpose   | Low-level runtime    | Kubernetes-native   | System-level containers      |
-| Easy CLI              | Yes               | Minimal              | Minimal             | Yes (LXD)                    |
-| Build Tools           | Yes               | No                   | No                  | No                           |
-| Security footprint    | Medium            | Low                  | Very Low            | Medium                       |
-| Supports systemd      | No                | No                   | No                  | Yes                          |
-| Best for production   | Broad use cases   | Kubernetes, cloud    | Kubernetes only     | Lightweight VM-like workloads|
-| Learning curve        | Low               | Medium               | Medium              | Higher                       |
+```bash
+VERSION=1.7.4
+curl -L https://github.com/containerd/nerdctl/releases/download/v${VERSION}/nerdctl-${VERSION}-linux-amd64.tar.gz -o nerdctl.tgz
+sudo tar -xzf nerdctl.tgz -C /usr/local/bin
+```
 
-Overall, the table shows that the choice of runtime depends heavily on the deployment context: Docker for general usage 
-and developer experience, containerd for cloud-native production systems, CRI-O for Kubernetes-exclusive environments, and LXC/LXD for system-level virtualization.
+---
 
-## Why containerd is the best general-purpose choice:
+## 2.6 Alternative compose.yaml for nerdctl
 
-It is the core runtime used by Docker itself, Kubernetes, AWS, Google Cloud, Azure, GitHub Actions, etc.
+```yaml
+version: "3.9"
 
-CNCF-maintained and neutral (open ecosystem)
+services:
+  db:
+    image: eclipse-temurin:21-jdk
+    command: >
+      sh -c "
+        apt-get update -y &&
+        apt-get install -y wget netcat-openbsd &&
+        wget -q https://repo1.maven.org/maven2/com/h2database/h2/2.2.224/h2-2.2.224.jar -O h2.jar &&
+        java -cp h2.jar org.h2.tools.Server -tcp -tcpAllowOthers -tcpPort 9092 -ifNotExists
+      "
+    ports:
+      - "9092:9092"
+    volumes:
+      - h2-data:/opt/h2
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
 
-Lower overhead and attack surface compared to Docker
+  web:
+    build:
+      context: app
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
 
-Supported by all major cloud providers
+volumes:
+  h2-data:
+```
 
-Does not include unnecessary extras (builder, desktop GUI, daemon features)
+---
 
-## When containerd makes the most sense:
+## 2.7 Running with nerdctl
 
-You want Docker-compatible performance without Docker’s overhead
+### Build:
 
-You care about stability, security, and production readiness
+```
+nerdctl build -t part2-web:latest app/
+```
 
-You deploy to Kubernetes
+### Run:
 
-You are running server environments
+```
+nerdctl compose up
+```
 
-## Final Recommendation
+### Push to Registry:
 
-containerd is the best overall alternative to Docker
-because it is lightweight, cloud-native, production-grade, and widely used as the underlying runtime for Kubernetes and modern orchestration platforms.
+```
+nerdctl tag part2-web xavidocker99/part2-web
+nerdctl push xavidocker99/part2-web
+```
 
-For Kubernetes-exclusive environments, CRI-O may be even more appropriate, while LXC/LXD are suited for full system-level virtualization rather than application-level containers
+---
+
+# 3. Comparison of Container Alternatives
+
+| Feature / Runtime     | Docker            | containerd           |
+|-----------------------|-------------------|----------------------|
+| Target use            | General purpose   | Low-level runtime    | 
+| Easy CLI              | Yes               | Minimal              | 
+| Build Tools           | Yes               | No                   | 
+| Security footprint    | Medium            | Low                  | 
+| Supports systemd      | No                | No                   | 
+| Best for production   | Broad use cases   | Kubernetes, cloud    | 
+| Learning curve        | Low               | Medium               | 
+
+---
+
+# 4. Final Recommendation
+
+containerd is the most realistic and production-oriented alternative to Docker.  
+When enhanced with **nerdctl**, **buildkit**, and **CNI**, it replicates most Docker Compose features while offering:
+
+- lower overhead  
+- cloud-native architecture  
+- CNCF governance  
+- strong integration with Kubernetes  
+
+For Kubernetes-only deployments, **CRI-O** may be preferred.  
+For system-level virtualization, **LXC/LXD** is more appropriate.  
