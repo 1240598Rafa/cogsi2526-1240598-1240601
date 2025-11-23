@@ -529,7 +529,206 @@ git tag ca5-part1
 git push origin ca5-part1
 git push --tags
 
+# CA5 – Part 2: Dockerized Spring Boot Application with H2 Database
 
+This project implements Part 2 of CA5, whose goal is to containerize the Spring Boot (Gradle) application from CA2/Part2 using **Docker** and **Docker Compose**.  
+The final architecture consists of two isolated containers:
+
+- `web` — runs the Spring Boot application  
+- `db` — runs the H2 database server in TCP mode  
+
+Both containers interact over an internal Docker network and start in the correct order using Docker health checks.  
+The application image is built from a Dockerfile and **published on Docker Hub**.
+
+---
+
+## 1. Project Architecture Overview
+
+### **db container**
+- Based on `eclipse-temurin:21-jdk`
+- Installs required tools (`wget`, `netcat-openbsd`)
+- Downloads the H2 JAR directly from Maven Central
+- Runs H2 in TCP server mode (`-tcp -tcpAllowOthers -tcpPort 9092`)
+- Uses a Docker volume to persist data
+- Provides a health check to ensure readiness
+
+### **web container**
+- Built from a custom Dockerfile
+- Installs Gradle, Git, Java, and other tools
+- Clones the required GitHub repository (mandatory for the assignment)
+- Builds the Spring Boot project using the Gradle wrapper
+- Runs the generated JAR
+- Pulled from Docker Hub by Docker Compose
+
+---
+
+## 2. Dockerfile (Application Image)
+
+This Dockerfile replicates the behaviour previously implemented using Vagrant provisioning scripts.  
+It installs all dependencies, clones the repository, builds the application, and runs the resulting JAR.
+
+```dockerfile
+FROM eclipse-temurin:21-jdk
+
+WORKDIR /app
+
+RUN apt-get update -y &&     apt-get install -y git gradle wget unzip &&     rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git /app/repo
+
+WORKDIR /app/repo/CA2/Part2
+
+RUN chmod +x gradlew
+
+RUN ./gradlew clean build -x test
+
+EXPOSE 8080
+
+CMD ["sh", "-c", "java -jar build/libs/*0.0.jar"]
+```
+
+### **Purpose of this Dockerfile**
+- Ensures a reproducible build environment  
+- Avoids dependency issues across systems  
+- Automatically compiles the Spring Boot project  
+- Produces a runnable container image  
+- Encapsulates the entire application inside a portable artifact  
+
+The final image is pushed to Docker Hub as:
+
+```
+xavidocker99/part2-web:latest
+```
+
+---
+
+## 3. Docker Compose File
+
+This Compose file defines both containers (`web` and `db`), their dependencies, shared networks, volumes, and startup order.
+
+```yaml
+version: '3.9'
+
+services:
+  db:
+    image: eclipse-temurin:21-jdk
+    container_name: h2-db
+    working_dir: /opt/h2
+    command: >
+      sh -c "
+        apt-get update -y &&
+        apt-get install -y wget netcat-openbsd &&
+        wget -q https://repo1.maven.org/maven2/com/h2database/h2/2.2.224/h2-2.2.224.jar -O h2.jar &&
+        java -cp h2.jar org.h2.tools.Server -tcp -tcpAllowOthers -tcpPort 9092 -ifNotExists
+      "
+    ports:
+      - "9092:9092"
+    volumes:
+      - h2_data:/opt/h2
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - backend
+
+  web:
+    image: xavidocker99/part2-web:latest
+    container_name: spring-web
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+
+volumes:
+  h2_data:
+
+networks:
+  backend:
+    driver: bridge
+```
+
+---
+
+## 4. Purpose of Each Section in Docker Compose
+
+### **services.db**
+Runs the H2 database server.  
+It includes:
+- Commands to install tools and download the H2 JAR  
+- Startup command for H2 in TCP mode  
+- Port mapping for external access  
+- Health check to ensure the DB is ready before the web container starts  
+
+### **services.web**
+Runs the Spring Boot application.  
+It includes:
+- The image hosted on Docker Hub  
+- A dependency ensuring that the database is fully ready  
+- Port exposure for browser access  
+- Connection to the same internal network as the DB  
+
+### **volumes**
+Defines persistent storage for H2 database files, ensuring data survives container restarts.
+
+### **networks**
+Creates an isolated Docker network that guarantees communication only between defined services.
+
+---
+
+## 5. Publishing the Application Image to Docker Hub
+
+### 1. Tag the local image:
+```
+docker tag part2-web:latest xavidocker99/part2-web:latest
+```
+
+### 2. Login to Docker Hub:
+```
+docker login
+```
+
+### 3. Push the image:
+```
+docker push xavidocker99/part2-web:latest
+```
+
+The image is now publicly available at:
+
+https://hub.docker.com/r/xavidocker99/part2-web
+
+---
+
+## 6. Running the Project
+
+### Start all containers:
+```
+docker compose up
+```
+
+### Or pull updated images:
+```
+docker compose pull
+docker compose up
+```
+
+### Application available at:
+http://localhost:8080/
+
+---
+
+## 7. Git Tag for Submission
+
+The final commit was tagged as required:
+
+```
+git tag ca5-part2
+git push origin ca5-part2
+```
 
 
 # Alteranatives to Docker
