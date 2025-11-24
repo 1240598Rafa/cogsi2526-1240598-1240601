@@ -53,6 +53,24 @@ pipeline {
                 sh "vagrant provision green"
             }
         }
+
+        stage('Tag Stable Build') {
+            when {
+                expression {
+                currentBuild.currentResult == 'SUCCESS'
+            }
+            }  
+            steps {
+                script {
+                    sh """
+                        git config user.name "jenkins"
+                        git config user.email "jenkins@example.com"
+                        git tag stable-v${BUILD_NUMBER}
+                        git push origin stable-v${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
     }
 
     post {
