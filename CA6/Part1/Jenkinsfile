@@ -56,6 +56,24 @@ pipeline {
             }
         }
 
+        stage('Health Check') {
+            steps {
+                script {
+                    def responseCode = sh (
+                        script: "curl -s -o /dev/null -w \"%{http_code}\" http://192.168.56.11:8080/greeting",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Health Check HTTP response code: ${responseCode}"
+
+                    if (responseCode != '200') {
+                        error "Health check failed: Application is not responding correctly."
+                    }
+                }
+            }
+        }
+
+
         stage('Tag Stable Build') {
             when {
                 expression {
