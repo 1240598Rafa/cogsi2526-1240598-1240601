@@ -6,7 +6,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git(
-                    branch: 'development',
+                    branch: 'ca6-part1',
                     url: 'https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git',
                     credentialsId: 'github-pat'
                 )
