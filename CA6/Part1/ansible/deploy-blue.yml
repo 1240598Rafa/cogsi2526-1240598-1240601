@@ -1,0 +1,45 @@
+---
+- hosts: blue
+  become: yes
+
+  tasks:
+    - name: Install Java
+      apt:
+        name: openjdk-17-jdk
+        state: present
+        update_cache: yes
+
+    - name: Create app directory
+      file:
+        path: /opt/app
+        state: directory
+
+    - name: Copy JAR
+      copy:
+        src: "/vagrant/spring-app/build/libs/rest-service-0.0.1-SNAPSHOT.jar"
+        dest: "/opt/app/app.jar"
+
+    - name: Create systemd service
+      copy:
+        dest: /etc/systemd/system/springapp.service
+        content: |
+          [Unit]
+          Description=Spring Boot App
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/java -jar /opt/app/app.jar
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Start service
+      systemd:
+        name: springapp
+        state: restarted
+        enabled: yes

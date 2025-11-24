@@ -1,0 +1,5 @@
+[blue]
+localhost ansible_connection=local
+
+[green]
+localhost ansible_connection=local

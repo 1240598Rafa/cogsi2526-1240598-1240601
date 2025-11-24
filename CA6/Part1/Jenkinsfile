@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git(
+                    branch: 'development',
+                    url: 'https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git',
+                    credentialsId: 'github-pat'
+                )
+            }
+        }
+
+        stage('Assemble') {
+            steps {
+                dir('CA6/Part1/spring-app') {
+                    sh './gradlew clean build'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                dir('CA6/Part1/spring-app') {
+                    sh './gradlew test'
+                }
+            }
+            post {
+                always {
+                    junit 'CA6/Part1/spring-app/build/test-results/test/*.xml'
+                }
+            }
+        }
+
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: 'CA6/Part1/spring-app/build/libs/*.jar', fingerprint: true
+            }
+        }
+
+        stage('Deploy to Production?') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    input message: "Deploy to GREEN VM?"
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh "vagrant provision green"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully."
+        }
+        failure {
+            echo "Pipeline failed."
+        }
+    }
+}

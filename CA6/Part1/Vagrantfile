@@ -1,0 +1,36 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/focal64"
+  config.vm.boot_timeout = 600
+
+  # VM BLUE
+  config.vm.define "blue" do |blue|
+    blue.vm.hostname = "blue"
+    blue.vm.network "private_network", ip: "192.168.56.10"
+
+    blue.vm.provider "virtualbox" do |vb|
+      vb.memory = 2048
+      vb.cpus = 2
+    end
+
+    blue.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "/vagrant/ansible/deploy-blue.yml"
+      ansible.inventory_path = "/vagrant/ansible/hosts"
+    end
+  end
+
+  # VM GREEN
+  config.vm.define "green" do |green|
+    green.vm.hostname = "green"
+    green.vm.network "private_network", ip: "192.168.56.11"
+
+    green.vm.provider "virtualbox" do |vb|
+      vb.memory = 2048
+      vb.cpus = 2
+    end
+
+    green.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "/vagrant/ansible/deploy-green.yml"
+      ansible.inventory_path = "/vagrant/ansible/hosts"
+    end
+  end
+end
