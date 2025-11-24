@@ -76,12 +76,10 @@ pipeline {
 
         stage('Tag Stable Build') {
             when {
-                expression {
-                currentBuild.currentResult == 'SUCCESS'
+                expression {currentBuild.currentResult == 'SUCCESS'}
             }
-            }  
             steps {
-                script {
+                sshagent(['github-pat']){
                     sh """
                         git config user.name "jenkins"
                         git config user.email "jenkins@example.com"
