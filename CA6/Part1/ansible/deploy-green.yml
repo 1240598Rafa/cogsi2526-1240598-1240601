@@ -1,0 +1,42 @@
+- hosts: green
+  become: yes
+  tasks:
+    - name: Install Java
+      apt:
+        name: openjdk-17-jre-headless
+        state: present
+        update_cache: yes
+
+    - name: Create app directory
+      file:
+        path: /opt/app
+        state: directory
+
+    - name: Copy JAR
+      copy:
+        src: ../spring-app/build/libs/rest-service-0.0.1-SNAPSHOT.jar
+        dest: /opt/app/app.jar
+        mode: '0755'
+
+    - name: Create systemd service
+      copy:
+        dest: /etc/systemd/system/spring-app.service
+        content: |
+          [Unit]
+          Description=Spring App
+
+          [Service]
+          ExecStart=/usr/bin/java -jar /opt/app/app.jar
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      command: systemctl daemon-reload
+
+    - name: Start service
+      systemd:
+        name: spring-app
+        enabled: yes
+        state: restarted
