@@ -6,9 +6,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git(
-                    branch: 'main',
-                    url: 'https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git',
-                    credentialsId: 'github-pat'
+                    echo "Checkout happened automatically (SCM)."
                 )
             }
         }
@@ -51,7 +49,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 dir('CA6/Part1') {
-                    sh "vagrant provision green"
+                    sh "vagrant up green --provision"
                 }
             }
         }
