@@ -52,7 +52,9 @@ pipeline {
             steps {
                 dir('CA6/Part1') {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no vagrant@192.168.56.11 \
+                        ssh -i "C:/Users/rafa/Desktop/ISEP/COGSI/cogsi2526-1240598-1240601/CA6/Part1/.vagrant/machines/green/virtualbox/private_key" \
+                        -o StrictHostKeyChecking=no \
+                        vagrant@192.168.56.11 \
                         "cd /vagrant/ansible && sudo ansible-playbook deploy-green.yml -i hosts"
                     '''
                 }
