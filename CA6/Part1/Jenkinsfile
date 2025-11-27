@@ -79,19 +79,26 @@ pipeline {
         }
 
 
-        stage('Tag Stable Build') {
-            when {
-                expression {currentBuild.currentResult == 'SUCCESS'}
-            }
-            steps {
-                sshagent(['github-pat']){
-                    sh """
-                        git config user.name "jenkins"
-                        git config user.email "jenkins@example.com"
-                        git tag stable-v${BUILD_NUMBER}
-                        git push origin stable-v${BUILD_NUMBER}
-                    """
-                }
+    stage('Tag Stable Build') {
+        when {
+            expression { currentBuild.currentResult == 'SUCCESS' }
+        }
+        steps {
+            withCredentials([
+                usernamePassword(
+                    credentialsId: 'github-pat',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_TOKEN'
+                )
+            ]) {
+                sh """
+                    git config user.name "jenkins"
+                    git config user.email "jenkins@example.com"
+
+                    git tag stable-v${BUILD_NUMBER}
+
+                    git push https://${GIT_USER}:${GIT_TOKEN}@github.com/1240598Rafa/cogsi2526-1240598-1240601.git stable-v${BUILD_NUMBER}
+                """
             }
         }
     }
