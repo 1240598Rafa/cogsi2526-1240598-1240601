@@ -13,8 +13,8 @@ The CA5 folder was organized as follows:
 CA5/
  └── Part1/
       ├── Chat/
-      │    ├── Dockerfile
       │    ├── Dockerfile.v1
+      │    ├── Dockerfile
       │    ├── Dockerfile.multi
       │    ├── gradlew, gradle/, src/, build.gradle, settings.gradle
       └── Spring/
