@@ -51,7 +51,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 dir('CA6/Part1') {
-                    sh "ansible-playbook deploy-green.yml -i hosts"
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no vagrant@192.168.56.11 \
+                        "cd /vagrant/ansible && sudo ansible-playbook deploy-green.yml -i hosts"
+                    '''
                 }
             }
         }
