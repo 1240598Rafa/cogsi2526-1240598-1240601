@@ -51,7 +51,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 dir('CA6/Part1') {
-                    sh "vagrant provision green"
+                    sh "ansible-playbook deploy-green.yml -i hosts"
                 }
             }
         }
