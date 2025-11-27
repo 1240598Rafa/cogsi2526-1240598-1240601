@@ -7,7 +7,11 @@ Vagrant.configure("2") do |config|
     blue.vm.hostname = "blue"
     blue.vm.network "private_network", ip: "192.168.56.10"
 
+    blue.vm.network "forwarded_port",
+                    guest: 22, host: 2223, auto_correct: true
+
     blue.vm.provider "virtualbox" do |vb|
+      vb.customize ["modifyvm", :id, "--natpf1", "delete", "ssh"]
       vb.memory = 2048
       vb.cpus = 2
     end
@@ -23,9 +27,13 @@ Vagrant.configure("2") do |config|
     green.vm.hostname = "green"
     green.vm.network "private_network", ip: "192.168.56.11"
     green.vm.provider "virtualbox" do |vb|
+      vb.customize ["modifyvm", :id, "--natpf1", "delete", "ssh"]
       vb.memory = 2048
       vb.cpus = 2
     end
+
+    green.vm.network "forwarded_port",
+                     guest: 22, host: 2203, auto_correct: true
 
     green.vm.provision "ansible_local" do |ansible|
       ansible.playbook = "/vagrant/ansible/deploy-green.yml"
