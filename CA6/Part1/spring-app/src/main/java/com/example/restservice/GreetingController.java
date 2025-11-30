@@ -9,18 +9,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class GreetingController {
 
-    private static final String template = "Hello, %s!";
-    private final AtomicLong counter = new AtomicLong();
+	private static final String template = "Hello, %s!";
+	private final AtomicLong counter = new AtomicLong();
 
-    @GetMapping("/greeting")
-    public Greeting greeting(
-            @RequestParam(value = "name", defaultValue = "World") String name) {
-
-        // Extra logic ONLY for CA6 rollback demo
-        if ("fail".equalsIgnoreCase(name)) {
-            throw new RuntimeException("Simulated production failure on /greeting");
-        }
-
-        return new Greeting(counter.incrementAndGet(), String.format(template, name));
-    }
+	@GetMapping("/greeting")
+	public Greeting greeting(@RequestParam(defaultValue = "World") String name) {
+		return new Greeting(counter.incrementAndGet(), String.format(template, name));
+	}
 }
