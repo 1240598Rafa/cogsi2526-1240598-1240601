@@ -12,8 +12,15 @@ public class GreetingController {
 	private static final String template = "Hello, %s!";
 	private final AtomicLong counter = new AtomicLong();
 
-	@GetMapping("/greeting")
-	public Greeting greeting(@RequestParam("name") String name) {
-    return new Greeting(counter.incrementAndGet(), String.format(template, name));
-	}
+@GetMapping("/greeting")
+    public Greeting greeting(
+            @RequestParam(value = "name", defaultValue = "World") String name) {
+
+        // CA6: comportamento extra APENAS para demonstrar rollback
+        if ("fail".equalsIgnoreCase(name)) {
+            throw new RuntimeException("Simulated production failure on /greeting");
+        }
+
+        return new Greeting(counter.incrementAndGet(), String.format(template, name));
+    }
 }

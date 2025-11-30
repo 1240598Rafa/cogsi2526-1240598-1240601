@@ -64,19 +64,22 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-                    retry(5) {
-                        sleep 5
-                    def responseCode = sh (
-                        script: """curl -s -o /dev/null -w '%{http_code}' http://192.168.56.11:8080/greeting || echo 000""",
-                        returnStdout: true
-                    ).trim()
+                    catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                        retry(5) {
+                            sleep 5
+                            def responseCode = sh(
+                                script: """curl -s -o /dev/null -w '%{http_code}' \
+                                http://192.168.56.11:8080/greeting?name=fail || echo 000""",
+                            returnStdout: true
+                            ).trim()
 
-                    echo "Health Check HTTP response code: ${responseCode}"
+                        echo "Health Check HTTP response code: ${responseCode}"
 
-                    if (responseCode != '200') {
-                        error "Health check failed: Application is not responding correctly."
+                            if (responseCode != '200') {
+                            error "Health check failed: Application is not responding correctly."
+                            }
+                        }
                     }
-                   }
                 }
             }
         }
@@ -109,7 +112,7 @@ pipeline {
 
         stage('Rollback GREEN (manual)') {
             when {
-                expression { currentBuild.currentResult != 'SUCCESS' }
+                expression { currentBuild.currentResult == 'FAILURE' }
             }
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
