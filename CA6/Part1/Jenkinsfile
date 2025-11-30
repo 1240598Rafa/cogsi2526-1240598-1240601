@@ -105,6 +105,35 @@ pipeline {
                 }
             }
         }
+
+
+        stage('Rollback GREEN (manual)') {
+            when {
+                expression { currentBuild.currentResult != 'SUCCESS' }
+            }
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    input message: "Execute rollback on GREEN VM with lastSuccessfulBuild from Jenkins?"
+                }
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'github-pat',
+                        usernameVariable: 'JENKINS_USER',
+                        passwordVariable: 'JENKINS_TOKEN'
+                    )
+                ]) {
+                    dir('CA6/Part1') {
+                        sh """
+                            ssh -i "C:/Users/rafa/Desktop/ISEP/COGSI/cogsi2526-1240598-1240601/CA6/Part1/.vagrant/machines/green/virtualbox/private_key" \
+                            -o StrictHostKeyChecking=no \
+                            vagrant@192.168.56.11 \
+                            "cd /vagrant/ansible && JENKINS_USER=${JENKINS_USER} JENKINS_TOKEN=${JENKINS_TOKEN} ansible-playbook rollback-green.yml -i hosts"
+                        """
+                    }
+                }
+            }
+        }
     }
     post {
         success {

@@ -1,7 +1,14 @@
 - hosts: green
   become: yes
   vars:
+    jenkins_url: "http://192.168.56.1:8080"
+    jenkins_job_name: "CA6-Part1-Pipeline"
+
+    jenkins_artifact_path: "CA6/Part1/spring-app/build/libs/rest-service-0.0.1-SNAPSHOT.jar"
+
+    rollback_dir: "/vagrant/rollback"
     rollback_jar: "/vagrant/rollback/rest-service-rollback.jar"
+    app_jar_dest: "/opt/app/app.jar"
 
   tasks:
 
@@ -9,6 +16,15 @@
       file:
         path: /vagrant/rollback
         state: directory
+
+    - name: Download last successful artifact from Jenkins
+      get_url:
+        url: "{{ jenkins_url }}/job/{{ jenkins_job_name }}/lastSuccessfulBuild/artifact/{{ jenkins_artifact_path }}"
+        dest: "{{ rollback_jar }}"
+        mode: "0755"
+        headers:
+          Authorization: "Basic {{ (lookup('env','JENKINS_USER') + ':' + lookup('env','JENKINS_TOKEN')) | b64encode }}"
+      register: download_result
 
     - name: Fail if rollback JAR does not exist
       stat:
