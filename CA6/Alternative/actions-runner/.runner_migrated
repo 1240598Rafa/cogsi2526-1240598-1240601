@@ -1,0 +1,11 @@
+﻿{
+  "agentId": 21,
+  "agentName": "DESKTOP-C51MGM2",
+  "poolId": 1,
+  "poolName": "Default",
+  "serverUrl": "https://pipelinesghubeus7.actions.githubusercontent.com/np4euNVmjkCdBAxDfnYR0AyunITKQi9QOnBNaXEYCSMCyunJJT/",
+  "gitHubUrl": "https://github.com/1240598Rafa/cogsi2526-1240598-1240601",
+  "workFolder": "_work",
+  "useV2Flow": true,
+  "serverUrlV2": "https://broker.actions.githubusercontent.com/"
+}
