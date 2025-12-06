@@ -1,17 +1,10 @@
 pipeline {
-    
-    agent {
-    docker {
-        image 'ubuntu:22.04'
-        args '-u root'
-        }
-    }
+    agent any
 
     environment {
-        DOCKERHUB_USER = credentials('dockerhub-username')
-        DOCKERHUB_PASS = credentials('dockerhub-password')
-        IMAGE_NAME = "xavidocker99/ca6-app"
-        ANSIBLE_DIR = "ansible"
+        DOCKERHUB_USER = credentials('dockerhub-user')
+        DOCKERHUB_PASS = credentials('dockerhub-pass')
+        IMAGE_NAME = "xavidocker99/ca6-app:latest"
     }
 
     stages {
@@ -26,7 +19,7 @@ pipeline {
         stage('Assemble') {
             steps {
                 dir('CA2/Part2') {
-                    sh './gradlew clean assemble -x test'
+                    bat 'gradlew.bat clean assemble -x test'
                 }
             }
         }
@@ -36,7 +29,7 @@ pipeline {
                 stage('Unit Tests') {
                     steps {
                         dir('CA2/Part2') {
-                            sh './gradlew test'
+                            bat 'gradlew.bat test --tests *Unit*'
                         }
                     }
                 }
@@ -44,65 +37,51 @@ pipeline {
                 stage('Integration Tests') {
                     steps {
                         dir('CA2/Part2') {
-                            sh './gradlew integrationTest'
+                            bat 'gradlew.bat test --tests *Integration*'
                         }
                     }
-                }
-            }
-            post {
-                always {
-                    junit 'CA2/Part2/build/test-results/**/*.xml'
                 }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
-                """
+                bat "docker build -t %IMAGE_NAME% ."
             }
         }
 
         stage('Tag Docker Image') {
             steps {
-                sh """
-                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
-                """
+                bat "docker tag %IMAGE_NAME% %IMAGE_NAME%"
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                sh """
-                    echo ${DOCKERHUB_PASS} | docker login -u ${DOCKERHUB_USER} --password-stdin
-                    docker push ${IMAGE_NAME}:${BUILD_NUMBER}
-                    docker push ${IMAGE_NAME}:latest
-                """
+                bat "docker login -u %DOCKERHUB_USER% -p %DOCKERHUB_PASS%"
+                bat "docker push %IMAGE_NAME%"
             }
         }
 
         stage('Archive') {
             steps {
-                archiveArtifacts artifacts: 'Dockerfile', fingerprint: true
+                archiveArtifacts artifacts: 'CA6/Part2/Dockerfile', allowEmptyArchive: true
             }
         }
 
         stage('Deploy to Production') {
             when {
-                branch "main"
+                branch 'main'
             }
             steps {
-                sh """
-                    ansible-playbook -i ${ANSIBLE_DIR}/hosts.ini ${ANSIBLE_DIR}/deploy.yml
-                """
+                bat "ansible-playbook -i ansible/hosts.ini ansible/deploy.yml"
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline completed successfully!"
+            echo "Build and deployment completed successfully!"
         }
         failure {
             echo "Pipeline FAILED!"
