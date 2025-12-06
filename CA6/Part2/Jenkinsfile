@@ -45,13 +45,13 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat "docker build -t ${IMAGE_NAME} CA6/Part2"
+                bat "docker build -t %IMAGE_NAME% CA6/Part2"
             }
         }
 
         stage('Tag Docker Image') {
             steps {
-                bat "docker tag ${IMAGE_NAME} ${IMAGE_NAME}"
+                bat "docker tag %IMAGE_NAME% %IMAGE_NAME%"
             }
         }
 
@@ -65,7 +65,7 @@ pipeline {
                     )
                 ]) {
                     bat "docker login -u %USER% -p %PASS%"
-                    bat "docker push ${IMAGE_NAME}"
+                    bat "docker push %IMAGE_NAME%"
                 }
             }
         }
