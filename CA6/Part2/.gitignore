@@ -1,0 +1,23 @@
+# Vagrant
+.vagrant/
+
+# Java / Spring / Gradle build
+**/build/
+**/.gradle/
+
+# IDE
+.idea/
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temp repos
+CA6/Part1/temp/
+
+# Private Keys
+**/private_key
+
+#passwords
+.env

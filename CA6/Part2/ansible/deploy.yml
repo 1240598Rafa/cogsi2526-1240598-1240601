@@ -1,0 +1,53 @@
+---
+- hosts: production
+  become: yes
+
+  vars:
+    env_file: "./ansible/.env"
+
+  pre_tasks:
+    - name: Load .env file
+      shell: |
+        set -a
+        source {{ env_file }}
+        set +a
+      args:
+        executable: /bin/bash
+      register: loaded_env
+
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Login to Docker Hub
+      docker_login:
+        username: "{{ lookup('env', 'DOCKER_USER') }}"
+        password: "{{ lookup('env', 'DOCKER_PASS') }}"
+
+    - name: Pull latest image
+      docker_image:
+        name: "xavidocker99/ca6-app:latest"
+        source: pull
+
+    - name: Stop old container
+      docker_container:
+        name: "ca6-app"
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove old container
+      docker_container:
+        name: "ca6-app"
+        state: absent
+      ignore_errors: yes
+
+    - name: Run new container
+      docker_container:
+        name: "ca6-app"
+        image: "xavidocker99/ca6-app:latest"
+        ports:
+          - "8080:8080"
+        state: started

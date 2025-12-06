@@ -1,0 +1,105 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_USER = credentials('dockerhub-username')
+        DOCKERHUB_PASS = credentials('dockerhub-password')
+        IMAGE_NAME = "xavidocker99/ca6-app"
+        ANSIBLE_DIR = "ansible"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git'
+            }
+        }
+
+        stage('Assemble') {
+            steps {
+                dir('CA2/Part2') {
+                    sh './gradlew clean assemble -x test'
+                }
+            }
+        }
+
+        stage('Tests') {
+            parallel {
+                stage('Unit Tests') {
+                    steps {
+                        dir('CA2/Part2') {
+                            sh './gradlew test'
+                        }
+                    }
+                }
+
+                stage('Integration Tests') {
+                    steps {
+                        dir('CA2/Part2') {
+                            sh './gradlew integrationTest'
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    junit 'CA2/Part2/build/test-results/**/*.xml'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                """
+            }
+        }
+
+        stage('Tag Docker Image') {
+            steps {
+                sh """
+                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh """
+                    echo ${DOCKERHUB_PASS} | docker login -u ${DOCKERHUB_USER} --password-stdin
+                    docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker push ${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: 'Dockerfile', fingerprint: true
+            }
+        }
+
+        stage('Deploy to Production') {
+            when {
+                branch "main"
+            }
+            steps {
+                sh """
+                    ansible-playbook -i ${ANSIBLE_DIR}/hosts.ini ${ANSIBLE_DIR}/deploy.yml
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        failure {
+            echo "Pipeline FAILED!"
+        }
+    }
+}
