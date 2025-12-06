@@ -653,12 +653,335 @@ ansible-playbook rollback-green.yml -i hosts
 git tag ca6-week1
 git push origin ca6-week1
 
-## 9. Alternative CI/CD Solution (Non-Jenkins)
+# Part 2: Full Pipeline Automation (Vagrant, Ansible, Docker, Jenkins)
+
+This part describes the complete end‑to‑end automation pipeline developed for CA6 Part 2, including provisioning, configuration management, image building, CI/CD, and deployment to a production‑like VM.  
+Everything is documented in the same order it was built, including challenges faced and all relevant commands executed during testing.
+
+---
+
+# 1. **Vagrant Virtual Machine Setup**
+
+The project begins by provisioning a production‑like environment using **Vagrant**.  
+The VM runs Ubuntu 20.04 and acts as the deployment target.
+
+### **Vagrantfile**
+```ruby
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/focal64"
+  config.vm.hostname = "prod-ca6"
+  config.vm.network "private_network", ip: "192.168.56.60"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = 2048
+    vb.cpus = 2
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    apt-get update -y
+    apt-get install -y python3 python3-pip
+  SHELL
+end
+```
+
+### **Commands executed during testing**
+```
+vagrant up
+vagrant ssh
+```
+
+---
+
+# 2. **Ansible Inventory (hosts.ini)**
+
+The VM is added to the **production** host group.  
+SSH authentication uses the Vagrant‑generated private key.
+
+### **hosts.ini**
+```ini
+[production]
+192.168.56.60 ansible_user=vagrant ansible_ssh_private_key_file=/home/ricartexa/.ssh/vagrant/private_key ansible_python_interpreter=/usr/bin/python3
+```
+
+---
+
+# 3. **Environment Variables (.env)**
+
+Used by Ansible to authenticate to Docker Hub.
+
+### **.env**
+```
+DOCKER_USER=xavidocker99
+DOCKER_PASS=mypassword
+```
+
+---
+
+# 4. **Ansible Deployment Playbook (deploy.yml)**
+
+This playbook installs Docker, logs into Docker Hub, pulls the latest container image, removes old versions, and starts the new one.
+
+### **deploy.yml**
+```yaml
+---
+- hosts: production
+  become: yes
+
+  vars:
+    env_file: "./ansible/.env"
+
+  pre_tasks:
+    - name: Load .env file
+      shell: |
+        set -a
+        source {{ env_file }}
+        set +a
+      args:
+        executable: /bin/bash
+      register: loaded_env
+
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Login to Docker Hub
+      docker_login:
+        username: "{{ lookup('env', 'DOCKER_USER') }}"
+        password: "{{ lookup('env', 'DOCKER_PASS') }}"
+
+    - name: Pull latest image
+      docker_image:
+        name: "xavidocker99/ca6-app:latest"
+        source: pull
+
+    - name: Stop old container
+      docker_container:
+        name: "ca6-app"
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remove old container
+      docker_container:
+        name: "ca6-app"
+        state: absent
+      ignore_errors: yes
+
+    - name: Run new container
+      docker_container:
+        name: "ca6-app"
+        image: "xavidocker99/ca6-app:latest"
+        ports:
+          - "8080:8080"
+        state: started
+```
+
+### **Commands used during testing**
+```
+ansible -i ansible/hosts.ini production -m ping
+ansible-playbook -i ansible/hosts.ini ansible/deploy.yml
+```
+
+---
+
+# 5. **Dockerfile – Building the Application Image**
+
+A multi‑stage Dockerfile compiles the Spring Boot application and creates a lightweight runtime image.
+
+### **Dockerfile**
+```dockerfile
+FROM eclipse-temurin:21-jdk as builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y git
+
+RUN git clone https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git repo
+
+WORKDIR /app/repo/CA2/Part2
+
+RUN chmod +x gradlew
+RUN ./gradlew clean build -x test
+
+# Runtime image
+FROM eclipse-temurin:21-jre
+
+WORKDIR /app
+
+# Copy only the final JAR
+COPY --from=builder /app/repo/CA2/Part2/build/libs/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+### **Commands executed while testing locally**
+```
+docker build -t xavidocker99/ca6-app:latest .
+docker push xavidocker99/ca6-app:latest
+```
+
+This image is later pulled by the VM through Ansible.
+
+---
+
+# 6. **Jenkins CI/CD Pipeline**
+
+The Jenkins pipeline automates:
+
+- code checkout  
+- application assembly  
+- unit and integration tests  
+- Docker image build  
+- Docker Hub authentication  
+- image push  
+- deployment via Ansible
+
+### **Credentials created in Jenkins**
+| ID | Type | Purpose |
+|----|------|---------|
+| dockerhub-username | Username + Password | Allows Jenkins to push images to Docker Hub |
+
+### **Additional Jenkins setup steps**
+1. Installed Docker Pipeline plugin  
+2. Verified Docker is available on the Jenkins host  
+3. Created pipeline job “CA6‑Pipeline”  
+4. Set Script Path to:  
+```
+CA6/Part2/Jenkinsfile
+```
+
+---
+
+# 7. **Jenkinsfile**
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "xavidocker99/ca6-app:latest"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/1240598Rafa/cogsi2526-1240598-1240601.git'
+            }
+        }
+
+        stage('Assemble') {
+            steps {
+                dir('CA2/Part2') {
+                    bat 'gradlew.bat clean assemble -x test'
+                }
+            }
+        }
+
+        stage('Tests') {
+            parallel {
+                stage('Unit Tests') {
+                    steps {
+                        dir('CA2/Part2') {
+                            bat 'gradlew.bat test --tests *Unit*'
+                        }
+                    }
+                }
+
+                stage('Integration Tests') {
+                    steps {
+                        dir('CA2/Part2') {
+                            bat 'gradlew.bat test --tests *Integration*'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                bat "docker build -t %%IMAGE_NAME%% CA6/Part2"
+            }
+        }
+
+        stage('Tag Docker Image') {
+            steps {
+                bat "docker tag %%IMAGE_NAME%% %%IMAGE_NAME%%"
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-username',
+                        usernameVariable: 'USER',
+                        passwordVariable: 'PASS'
+                    )
+                ]) {
+                    bat "echo %%PASS%% | docker login --username %%USER%% --password-stdin"
+                    bat "docker push %%IMAGE_NAME%%"
+                }
+            }
+        }
+
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: 'CA6/Part2/Dockerfile', allowEmptyArchive: true
+            }
+        }
+
+        stage('Deploy to Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                bat "ansible-playbook -i ansible/hosts.ini ansible/deploy.yml"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Build and deployment completed successfully!"
+        }
+        failure {
+            echo "Pipeline FAILED!"
+        }
+    }
+}
+```
+
+---
+
+# 8. **Final Architecture**
+
+```
+Developer → GitHub → Jenkins → Docker Hub → Ansible → Vagrant VM (Production)
+```
+
+The entire workflow is now fully automated:
+
+1. Push to GitHub  
+2. Jenkins builds & tests  
+3. Jenkins builds Docker image  
+4. Jenkins pushes image to Docker Hub  
+5. Jenkins triggers Ansible  
+6. Ansible deploys container to VM  
+
+---
+
+## Alternative CI/CD Solution (Non-Jenkins)
 
 The CA6 specification requires an different technological solution for the configuration management / CI/CD tool, not based on Jenkins, and an analysis of how it compares to the base solution.
 For this purpose, GitHub Actions is considered an alternative to Jenkins as a CI/CD platform.
 
-### 9.1 Candidate tools
+### 1.1 Candidate tools
 
 Several CI/CD platforms could replace Jenkins:
 
@@ -668,7 +991,7 @@ Several CI/CD platforms could replace Jenkins:
 
 Since this assignment is already using a private GitHub repository, GitHub Actions is a natural alternative: no extra server is required, and SCM + CI/CD are managed on a single platform.
 
-### 9.2 Jenkins vs GitHub Actions – Feature comparison
+### 1.2 Jenkins vs GitHub Actions – Feature comparison
 
 | Aspect                        | Jenkins (base solution)                                         | GitHub Actions (alternative)                                       |
 |-------------------------------|------------------------------------------------------------------|--------------------------------------------------------------------|
@@ -685,8 +1008,8 @@ Since this assignment is already using a private GitHub repository, GitHub Actio
 
 For this assignment, Jenkins gives full control over the CI server and fits the goal of learning a traditional on-prem pipeline tool. GitHub Actions would simplify infrastructure but at the cost of relying on a SaaS platform and GitHub-specific concepts.
 
-### 9.3 Alternative design using GitHub Actions
-#### 9.3.1 Runner model
+### 1.3 Alternative design using GitHub Actions
+#### 1.3.1 Runner model
 
 To keep the same topology (Vagrant + Ansible + local VMs), a **self-hosted GitHub Actions runner** can be installed on the same host machine that currently runs Jenkins.
 Because Ansible does not run natively on Windows, the runner integrates with **WSL (Ubuntu)** to execute all Ansible playbooks. The resulting setup provides:
@@ -705,7 +1028,7 @@ wsl ansible-playbook playbook.yml -i hosts
 
 This is equivalent to the current Jenkins node and allows GitHub Actions to run `vagrant` and `ansible-playbook` commands in the same way.
 
-#### 9.3.2 Workflow for Part 1 – Blue–Green deployment
+#### 1.3.2 Workflow for Part 1 – Blue–Green deployment
 
 A workflow file such as `.github/workflows/ca6-part1.yml` could implement the following jobs:
 
@@ -761,7 +1084,7 @@ A workflow file such as `.github/workflows/ca6-part1.yml` could implement the fo
 
 Overall, the GitHub Actions design reuses the same Vagrant + Ansible setup and enforces the same pipeline stages (build, test, deploy, verification, rollback), but moves orchestration from Jenkins to cloud-hosted workflows.
 
-#### 9.3.3 Workflow for Part 2 – Docker image and production VM
+#### 1.3.3 Workflow for Part 2 – Docker image and production VM
 
 For Part 2, a workflow such as `.github/workflows/ca6-part2.yml` could implement:
 
@@ -784,7 +1107,7 @@ For Part 2, a workflow such as `.github/workflows/ca6-part2.yml` could implement
 4. **health-check** job
    - Similar to Part 1, verifying that the containerized version responds correctly on the production VM.
 
-### 9.4 Discussion and justification of the base choice
+### 1.4 Discussion and justification of the base choice
 
 GitHub Actions provides a modern, tightly integrated CI/CD solution with less operational overhead than Jenkins, especially when working exclusively with GitHub repositories. It simplifies authentication, artifact management and event triggers, and would be a valid alternative to implement the full CA6 assignment.  
 
